@@ -1,8 +1,7 @@
 package be.formatech.training.formationrefactoring.exercice1.internal;
 
-import java.sql.Date;
 import java.sql.SQLException;
-import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 
 public class ResultSet {
@@ -74,9 +73,9 @@ public class ResultSet {
             throw new SQLException("Index out of bound.");
         }
 
-        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
-        LocalDate locald = LocalDate.parse((String) data[currentIndex][index-1], formatter);
-        return Date.valueOf(locald);
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd hh:mm:ss");
+        LocalDateTime dateTime = LocalDateTime.parse((String) data[currentIndex][index-1], DateTimeFormatter.ISO_LOCAL_DATE_TIME);
+        return java.sql.Date.valueOf(dateTime.toLocalDate());
     }
 
     public void close() throws SQLException {
