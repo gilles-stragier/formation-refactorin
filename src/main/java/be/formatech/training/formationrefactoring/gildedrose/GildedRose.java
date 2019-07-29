@@ -4,19 +4,23 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import static java.util.Arrays.stream;
-
 class GildedRose {
     Item[] items;
-    private List<ItemCalculator> wrappedItems;
+    private final List<ItemCalculator> wrappedItems;
+    private final ItemCalculatorFactory itemCalculatorFactory;
 
-    public GildedRose(Item[] items) {
+    public GildedRose(Item[] items, ItemCalculatorFactory itemCalculatorFactory) {
         this.items = items;
+        this.itemCalculatorFactory = itemCalculatorFactory;
         this.wrappedItems = initCalculators(items);
     }
 
+    public GildedRose(Item[] items) {
+        this(items, new ItemCalculatorFactory());
+    }
+
     private List<ItemCalculator> initCalculators(Item[] items) {
-        return Arrays.stream(items).map(ItemCalculator::new).collect(Collectors.toList());
+        return Arrays.stream(items).map(item -> itemCalculatorFactory.create(item)).collect(Collectors.toList());
     }
 
     public void updateQuality() {
