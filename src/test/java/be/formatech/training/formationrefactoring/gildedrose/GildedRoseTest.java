@@ -1,5 +1,6 @@
 package be.formatech.training.formationrefactoring.gildedrose;
 
+import org.junit.Ignore;
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
@@ -59,6 +60,7 @@ public class GildedRoseTest {
 
 
     @Test
+    @Ignore("Not yet implemented")
     public void newFeatureTest() {
         Item[] items = new Item[]{
                 new Item("Conjured Mana Cake", 3, 6)};
@@ -71,6 +73,19 @@ public class GildedRoseTest {
         assertEquals("Conjured Mana Cake", app.items[0].name);
         assertEquals(2, app.items[0].sellIn);
         assertEquals(4, app.items[0].quality);
+
+    }
+
+    @Test
+    public void expiredBackstagePassesHaveZeroInQuality(){
+        Item[] items = new Item[]{
+                new Item("Backstage passes to a TAFKAL80ETC concert", 0, 40)};
+
+        GildedRose app = new GildedRose(items);
+
+        app.updateQuality();
+
+        assertEquals(0, app.items[0].quality);
 
     }
 
