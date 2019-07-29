@@ -9,22 +9,27 @@ class GildedRose {
 
     public void updateQuality() {
         for (int i = 0; i < items.length; i++) {
+            updateQualityPerItem(items[i]);
+        }
+    }
 
-            computeQuality(items[i]);
+    private void updateQualityPerItem(Item item) {
+        computeQuality(item);
+        computeSellIn(item);
+        handleExpiration(item);
+    }
 
-            computeSellIn(items[i]);
-
-            if (isExpired(items[i])) {
-                if (!isAgedBrie(items[i])) {
-                    if (!isBackstagePass(items[i])) {
-                        decreaseQuality(items[i]);
-                    } else {
-                        items[i].quality = 0;
-                    }
+    private void handleExpiration(Item item) {
+        if (isExpired(item)) {
+            if (!isAgedBrie(item)) {
+                if (!isBackstagePass(item)) {
+                    decreaseQuality(item);
                 } else {
-                    if (items[i].quality < 50) {
-                        items[i].quality = items[i].quality + 1;
-                    }
+                    item.quality = 0;
+                }
+            } else {
+                if (item.quality < 50) {
+                    item.quality = item.quality + 1;
                 }
             }
         }
