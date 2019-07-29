@@ -8,17 +8,17 @@ public class ItemCalculator {
         this.item = item;
     }
 
-    void updateQualityPerItem() {
-        computeQuality(item);
-        computeSellIn(item);
-        handleExpiration(item);
+    public void updateQuality() {
+        computeQuality();
+        computeSellIn();
+        handleExpiration();
     }
 
-    void handleExpiration(Item item) {
-        if (isExpired(item)) {
-            if (!isAgedBrie(item)) {
-                if (!isBackstagePass(item)) {
-                    decreaseQuality(item);
+    void handleExpiration() {
+        if (isExpired()) {
+            if (!isAgedBrie()) {
+                if (!isBackstagePass()) {
+                    decreaseQuality();
                 } else {
                     item.quality = 0;
                 }
@@ -30,25 +30,25 @@ public class ItemCalculator {
         }
     }
 
-    void computeSellIn(Item item) {
-        if (!isSulfuras(item)) {
+    void computeSellIn() {
+        if (!isSulfuras()) {
             item.sellIn = item.sellIn - 1;
         }
     }
 
-    void computeQuality(Item item) {
-        if (!isAgedBrie(item) && !isBackstagePass(item)) {
-            decreaseQuality(item);
+    void computeQuality() {
+        if (!isAgedBrie() && !isBackstagePass()) {
+            decreaseQuality();
         } else {
-            increaseQuality(item);
+            increaseQuality();
         }
     }
 
-    void increaseQuality(Item item) {
+    void increaseQuality() {
         if (item.quality < 50) {
             item.quality = item.quality + 1;
 
-            if (isBackstagePass(item)) {
+            if (isBackstagePass()) {
                 if (item.sellIn < 11) {
                     if (item.quality < 50) {
                         item.quality = item.quality + 1;
@@ -64,27 +64,27 @@ public class ItemCalculator {
         }
     }
 
-    void decreaseQuality(Item item) {
+    void decreaseQuality() {
         if (item.quality > 0) {
-            if (!isSulfuras(item)) {
+            if (!isSulfuras()) {
                 item.quality = item.quality - 1;
             }
         }
     }
 
-    boolean isAgedBrie(Item item) {
+    boolean isAgedBrie() {
         return item.name.equals("Aged Brie");
     }
 
-    boolean isBackstagePass(Item item) {
+    boolean isBackstagePass() {
         return item.name.equals("Backstage passes to a TAFKAL80ETC concert");
     }
 
-    boolean isSulfuras(Item item) {
+    boolean isSulfuras() {
         return item.name.equals("Sulfuras, Hand of Ragnaros");
     }
 
-    boolean isExpired(Item item) {
+    boolean isExpired() {
         return item.sellIn < 0;
     }
 

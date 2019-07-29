@@ -20,9 +20,6 @@ class GildedRose {
     }
 
     public void updateQuality() {
-        wrappedItems.forEach(c -> c.updateQualityPerItem());
+        wrappedItems.forEach(ItemCalculator::updateQuality);
     }
-
-
-
 }
