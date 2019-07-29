@@ -12,9 +12,7 @@ class GildedRose {
 
             computeQuality(items[i]);
 
-            if (!isSulfuras(items[i])) {
-                items[i].sellIn = items[i].sellIn - 1;
-            }
+            computeSellIn(items[i]);
 
             if (isExpired(items[i])) {
                 if (!isAgedBrie(items[i])) {
@@ -29,6 +27,12 @@ class GildedRose {
                     }
                 }
             }
+        }
+    }
+
+    private void computeSellIn(Item item) {
+        if (!isSulfuras(item)) {
+            item.sellIn = item.sellIn - 1;
         }
     }
 
