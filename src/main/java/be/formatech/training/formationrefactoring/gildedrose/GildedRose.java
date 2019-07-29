@@ -17,20 +17,20 @@ class GildedRose {
     }
 
     private List<ItemCalculator> initCalculators(Item[] items) {
-        return Arrays.stream(items).map(i -> new ItemCalculator(i)).collect(Collectors.toList());
+        return Arrays.stream(items).map(ItemCalculator::new).collect(Collectors.toList());
     }
 
     public void updateQuality() {
-        stream(items).forEach(this::updateQualityPerItem);
+        wrappedItems.forEach(this::updateQualityPerItem);
     }
 
-    private void updateQualityPerItem(Item item) {
-        computeQuality(item);
-        computeSellIn(item);
-        handleExpiration(item);
+    private void updateQualityPerItem(ItemCalculator itemCalculator) {
+        computeQuality(itemCalculator.item);
+        computeSellIn(itemCalculator.item);
+        handleExpiration(itemCalculator.item);
     }
 
-    private void handleExpiration(Item item) {
+    void handleExpiration(Item item) {
         if (isExpired(item)) {
             if (!isAgedBrie(item)) {
                 if (!isBackstagePass(item)) {
@@ -46,13 +46,13 @@ class GildedRose {
         }
     }
 
-    private void computeSellIn(Item item) {
+    void computeSellIn(Item item) {
         if (!isSulfuras(item)) {
             item.sellIn = item.sellIn - 1;
         }
     }
 
-    private void computeQuality(Item item) {
+    void computeQuality(Item item) {
         if (!isAgedBrie(item) && !isBackstagePass(item)) {
             decreaseQuality(item);
         } else {
@@ -60,7 +60,7 @@ class GildedRose {
         }
     }
 
-    private void increaseQuality(Item item) {
+    void increaseQuality(Item item) {
         if (item.quality < 50) {
             item.quality = item.quality + 1;
 
@@ -80,7 +80,7 @@ class GildedRose {
         }
     }
 
-    private void decreaseQuality(Item item) {
+    void decreaseQuality(Item item) {
         if (item.quality > 0) {
             if (!isSulfuras(item)) {
                 item.quality = item.quality - 1;
@@ -88,19 +88,19 @@ class GildedRose {
         }
     }
 
-    private boolean isAgedBrie(Item item) {
+    boolean isAgedBrie(Item item) {
         return item.name.equals("Aged Brie");
     }
 
-    private boolean isBackstagePass(Item item) {
+    boolean isBackstagePass(Item item) {
         return item.name.equals("Backstage passes to a TAFKAL80ETC concert");
     }
 
-    private boolean isSulfuras(Item item) {
+    boolean isSulfuras(Item item) {
         return item.name.equals("Sulfuras, Hand of Ragnaros");
     }
 
-    private boolean isExpired(Item item) {
+    boolean isExpired(Item item) {
         return item.sellIn < 0;
     }
 
