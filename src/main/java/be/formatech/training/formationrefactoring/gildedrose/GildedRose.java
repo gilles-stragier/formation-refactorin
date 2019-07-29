@@ -20,7 +20,7 @@ class GildedRose {
     }
 
     private List<ItemCalculator> initCalculators(Item[] items) {
-        return Arrays.stream(items).map(item -> itemCalculatorFactory.create(item)).collect(Collectors.toList());
+        return Arrays.stream(items).map(itemCalculatorFactory::create).collect(Collectors.toList());
     }
 
     public void updateQuality() {
