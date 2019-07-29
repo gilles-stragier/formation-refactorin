@@ -1,5 +1,9 @@
 package be.formatech.training.formationrefactoring.gildedrose;
 
+import java.util.Arrays;
+
+import static java.util.Arrays.stream;
+
 class GildedRose {
     Item[] items;
 
@@ -8,9 +12,7 @@ class GildedRose {
     }
 
     public void updateQuality() {
-        for (int i = 0; i < items.length; i++) {
-            updateQualityPerItem(items[i]);
-        }
+        stream(items).forEach(i -> updateQualityPerItem(i));
     }
 
     private void updateQualityPerItem(Item item) {
