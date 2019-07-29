@@ -12,7 +12,7 @@ class GildedRose {
     }
 
     public void updateQuality() {
-        stream(items).forEach(i -> updateQualityPerItem(i));
+        stream(items).forEach(this::updateQualityPerItem);
     }
 
     private void updateQualityPerItem(Item item) {
