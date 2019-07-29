@@ -20,7 +20,7 @@ class GildedRose {
                 items[i].sellIn = items[i].sellIn - 1;
             }
 
-            if (items[i].sellIn < 0) {
+            if (isExpired(items[i])) {
                 if (!isAgedBrie(items[i])) {
                     if (!isBackstagePass(items[i])) {
                         decreaseQuality(items[i]);
@@ -74,6 +74,10 @@ class GildedRose {
 
     private boolean isSulfuras(Item item) {
         return item.name.equals("Sulfuras, Hand of Ragnaros");
+    }
+
+    private boolean isExpired(Item item) {
+        return item.sellIn < 0;
     }
 
 
