@@ -13,17 +13,17 @@ public class ItemCalculator {
     public void updateQuality() {
         computeQuality();
         computeSellIn();
-        if (isExpired()) {
-            handleExpiration();
-        }
+        handleExpiration();
     }
 
     protected void handleExpiration() {
-        decreaseQuality();
+        if (isExpired()) {
+            decreaseQuality();
+        }
     }
 
     protected void computeSellIn() {
-        item.sellIn = item.sellIn - 1;
+        item.sellIn -= 1;
     }
 
     protected void computeQuality() {
@@ -31,15 +31,11 @@ public class ItemCalculator {
     }
 
     protected void increaseQuality() {
-        if (item.quality < MAX_QUALITY) {
-            item.quality = item.quality + 1;
-        }
+        item.quality = Math.min(MAX_QUALITY, item.quality + 1);
     }
 
     protected void decreaseQuality() {
-        if (item.quality > 0) {
-            item.quality = item.quality - 1;
-        }
+        item.quality = Math.max(0, item.quality - 1);
     }
 
     boolean isExpired() {

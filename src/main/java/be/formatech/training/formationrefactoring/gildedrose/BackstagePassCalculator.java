@@ -15,11 +15,13 @@ public class BackstagePassCalculator extends ItemCalculator {
 
     @Override
     protected void handleExpiration() {
-        item.quality = 0;
+        if (isExpired()) {
+            item.quality = 0;
+        }
     }
 
     @Override
-    void increaseQuality() {
+    protected void increaseQuality() {
         if (item.sellIn <= 5) {
             item.quality = min(MAX_QUALITY, item.quality + 3);
         } else if (item.sellIn <= 10) {
