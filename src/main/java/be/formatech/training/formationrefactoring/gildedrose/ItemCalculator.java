@@ -31,20 +31,6 @@ public class ItemCalculator {
     void increaseQuality() {
         if (item.quality < 50) {
             item.quality = item.quality + 1;
-
-            if (isBackstagePass()) {
-                if (item.sellIn < 11) {
-                    if (item.quality < 50) {
-                        item.quality = item.quality + 1;
-                    }
-                }
-
-                if (item.sellIn < 6) {
-                    if (item.quality < 50) {
-                        item.quality = item.quality + 1;
-                    }
-                }
-            }
         }
     }
 
@@ -52,14 +38,6 @@ public class ItemCalculator {
         if (item.quality > 0) {
             item.quality = item.quality - 1;
         }
-    }
-
-    boolean isBackstagePass() {
-        return item.name.equals("Backstage passes to a TAFKAL80ETC concert");
-    }
-
-    boolean isSulfuras() {
-        return item.name.equals("Sulfuras, Hand of Ragnaros");
     }
 
     boolean isExpired() {

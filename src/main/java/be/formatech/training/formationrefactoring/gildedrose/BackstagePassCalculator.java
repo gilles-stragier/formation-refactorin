@@ -15,4 +15,24 @@ public class BackstagePassCalculator extends ItemCalculator {
     protected void handleExpiration() {
         item.quality = 0;
     }
+
+    @Override
+    void increaseQuality() {
+        if (item.quality < 50) {
+            item.quality = item.quality + 1;
+
+            if (item.sellIn < 11) {
+                if (item.quality < 50) {
+                    item.quality = item.quality + 1;
+                }
+            }
+
+            if (item.sellIn < 6) {
+                if (item.quality < 50) {
+                    item.quality = item.quality + 1;
+                }
+            }
+
+        }
+    }
 }
