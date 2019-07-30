@@ -29,19 +29,17 @@ Feel free to make any changes to the UpdateQuality method and add any new code a
 
 C'est un extrait d'un programme de gestion d'une école.
 
-Dans cet exemple, des élèves suivent des cours
+Des élèves suivent des cours et passent des interrogations.
 
 Il n'y a pas de dépendances vers JPA/Hibernate ou Spring pour simplifier la configuration du projet. Ce n'est pas l'objet de l'exercice.
 
-Par ailleurs, les entités ne sont pas particulièrement bien écrites. Elles peuvent être modifiées dans le cadre de cet exercice, mais ce n'est LEUR refactoring qui est visé.
-
-Ce qui est visé, c'est le refactoring de la méthode coursReussi de CoursServiceImpl. Néanmoins, dans le cadre de ce refactoring, les autres classes pourraient être impactées.
+Les entités ne sont pas non plus bien écrites, mais elles ne sont pas le sujet de l'exercice. Par contre, elles pourraient être modifiées dans le cadre de ce qui est visé ici: le refactoring de la méthode coursReussi de CoursServiceImpl.
 
 ### Que fait cette méthode?
 
-Elle va parcourir toutes les interrogations d'un élève pour un cours donné et vérifier si l'élève a réussi.
+Elle parcourt toutes les interrogations d'un élève pour un cours donné et dit si l'élève a réussi.
 
-Le calcul dépend du type de cours (propriété typeCours):
+Ce calcul dépend du type de cours (propriété typeCours dans Cours):
 
 - pour les cours principaux, il faut une moyenne de 60% sur l'ensemble des interros et 50% dans toutes le interros
 - pour les cours secondaires, il faut avoir réussi toutes les interros avec 50% au moins
