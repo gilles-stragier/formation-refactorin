@@ -3,6 +3,7 @@ package be.formatech.training.formationrefactoring.gildedrose;
 import org.junit.Ignore;
 import org.junit.Test;
 
+import static be.formatech.training.formationrefactoring.gildedrose.ItemCalculator.MAX_QUALITY;
 import static org.junit.Assert.assertEquals;
 
 public class GildedRoseTest {
@@ -50,11 +51,11 @@ public class GildedRoseTest {
 
         assertEquals("Backstage passes to a TAFKAL80ETC concert", app.items[6].name);
         assertEquals(9, app.items[6].sellIn);
-        assertEquals(50, app.items[6].quality);
+        assertEquals(MAX_QUALITY, app.items[6].quality);
 
         assertEquals("Backstage passes to a TAFKAL80ETC concert", app.items[7].name);
         assertEquals(4, app.items[7].sellIn);
-        assertEquals(50, app.items[7].quality);
+        assertEquals(MAX_QUALITY, app.items[7].quality);
 
     }
 
