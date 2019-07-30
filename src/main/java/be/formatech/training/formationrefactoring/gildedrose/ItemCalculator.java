@@ -16,16 +16,8 @@ public class ItemCalculator {
         }
     }
 
-    void handleExpiration() {
-        if (isAgedBrie()) {
-            if (item.quality < 50) {
-                item.quality = item.quality + 1;
-            }
-        } else if (isBackstagePass()) {
-            item.quality = 0;
-        } else {
-            decreaseQuality();
-        }
+    protected void handleExpiration() {
+        decreaseQuality();
     }
 
     void computeSellIn() {

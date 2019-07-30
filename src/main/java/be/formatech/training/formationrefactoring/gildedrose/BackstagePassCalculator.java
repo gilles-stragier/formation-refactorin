@@ -5,4 +5,9 @@ public class BackstagePassCalculator extends ItemCalculator {
     public BackstagePassCalculator(Item item) {
         super(item);
     }
+
+    @Override
+    protected void handleExpiration() {
+        item.quality = 0;
+    }
 }
