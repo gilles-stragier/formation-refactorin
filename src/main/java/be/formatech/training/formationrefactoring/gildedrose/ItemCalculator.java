@@ -20,10 +20,8 @@ public class ItemCalculator {
         decreaseQuality();
     }
 
-    void computeSellIn() {
-        if (!isSulfuras()) {
-            item.sellIn = item.sellIn - 1;
-        }
+    protected void computeSellIn() {
+        item.sellIn = item.sellIn - 1;
     }
 
     void computeQuality() {
