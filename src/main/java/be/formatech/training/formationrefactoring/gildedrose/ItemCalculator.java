@@ -11,9 +11,13 @@ public class ItemCalculator {
     }
 
     public void updateQuality() {
-        computeQuality();
-        computeSellIn();
-        handleExpiration();
+        item.sellIn -= 1;
+
+        if (isExpired()) {
+            item.quality = Math.max(0, item.quality - 2);
+        } else {
+            item.quality = Math.max(0, item.quality - 1);
+        }
     }
 
     protected void handleExpiration() {

@@ -7,6 +7,13 @@ public class AgedBrieCalculator extends ItemCalculator {
     }
 
     @Override
+    public void updateQuality() {
+        computeQuality();
+        computeSellIn();
+        handleExpiration();
+    }
+
+    @Override
     protected void computeQuality() {
         increaseQuality();
     }

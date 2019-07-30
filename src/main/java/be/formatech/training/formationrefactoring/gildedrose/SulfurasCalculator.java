@@ -7,6 +7,13 @@ public class SulfurasCalculator extends ItemCalculator {
     }
 
     @Override
+    public void updateQuality() {
+        computeQuality();
+        computeSellIn();
+        handleExpiration();
+    }
+
+    @Override
     protected void computeSellIn() {}
 
     @Override
