@@ -3,6 +3,7 @@ package be.formatech.training.formationrefactoring.gildedrose;
 public class ItemCalculator {
 
     public static final int MAX_QUALITY = 50;
+
     public Item item;
 
     public ItemCalculator(Item item) {
@@ -29,7 +30,7 @@ public class ItemCalculator {
         decreaseQuality();
     }
 
-    void increaseQuality() {
+    protected void increaseQuality() {
         if (item.quality < MAX_QUALITY) {
             item.quality = item.quality + 1;
         }

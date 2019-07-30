@@ -90,4 +90,17 @@ public class GildedRoseTest {
 
     }
 
+    @Test
+    public void expiredBrieQualityIncreasesTwice(){
+        Item[] items = new Item[]{
+                new Item("Aged Brie", 0, 40)};
+
+        GildedRose app = new GildedRose(items);
+
+        app.updateQuality();
+
+        assertEquals(42, app.items[0].quality);
+
+    }
+
 }
