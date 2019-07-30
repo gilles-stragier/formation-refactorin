@@ -1,5 +1,7 @@
 package be.formatech.training.formationrefactoring.gildedrose;
 
+import static java.lang.Math.min;
+
 public class ItemCalculator {
 
     public static final int MAX_QUALITY = 50;
@@ -10,8 +12,12 @@ public class ItemCalculator {
         this.item = item;
     }
 
-    public void updateQuality() {
+    protected void decreaseSellIn() {
         item.sellIn -= 1;
+    }
+
+    public void updateQuality() {
+        decreaseSellIn();
 
         if (isExpired()) {
             item.quality = Math.max(0, item.quality - 2);
@@ -24,4 +30,7 @@ public class ItemCalculator {
         return item.sellIn < 0;
     }
 
+    protected void increaseQualityBy(int n) {
+        item.quality = min(MAX_QUALITY, item.quality + n);
+    }
 }

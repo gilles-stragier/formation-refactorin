@@ -8,12 +8,12 @@ public class AgedBrieCalculator extends ItemCalculator {
 
     @Override
     public void updateQuality() {
-        item.sellIn -= 1;
+        decreaseSellIn();
 
         if (isExpired()) {
-            item.quality = Math.min(MAX_QUALITY, item.quality + 2);
+            increaseQualityBy(2);
         } else {
-            item.quality = Math.min(MAX_QUALITY, item.quality + 1);
+            increaseQualityBy(1);
         }
     }
 
