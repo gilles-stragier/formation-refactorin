@@ -9,32 +9,18 @@ public class BackstagePassCalculator extends ItemCalculator {
     }
 
     @Override
-    protected void computeQuality() {
-        increaseQuality();
-    }
+    public void updateQuality() {
+        item.sellIn -= 1;
 
-    @Override
-    protected void handleExpiration() {
         if (isExpired()) {
             item.quality = 0;
-        }
-    }
-
-    @Override
-    public void updateQuality() {
-        computeQuality();
-        computeSellIn();
-        handleExpiration();
-    }
-
-    @Override
-    protected void increaseQuality() {
-        if (item.sellIn <= 5) {
+        } else if (item.sellIn < 5) {
             item.quality = min(MAX_QUALITY, item.quality + 3);
-        } else if (item.sellIn <= 10) {
+        } else if (item.sellIn < 10) {
             item.quality = min(MAX_QUALITY, item.quality + 2);
         } else {
             item.quality += 1;
         }
     }
+
 }
