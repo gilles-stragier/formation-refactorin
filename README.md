@@ -24,3 +24,26 @@ We have recently signed a supplier of conjured items. This requires an update to
 
 “Conjured” items degrade in Quality twice as fast as normal items
 Feel free to make any changes to the UpdateQuality method and add any new code as long as everything still works correctly. However, do not alter the Item class or Items property as those belong to the goblin in the corner who will insta-rage and one-shot you as he doesn’t believe in shared code ownership (you can make the UpdateQuality method and Items property static if you like, we’ll cover for you).
+
+## Exercice 2
+
+C'est un extrait d'un programme de gestion d'une école.
+
+Dans cet exemple, des élèves suivent des cours
+
+Il n'y a pas de dépendances vers JPA/Hibernate ou Spring pour simplifier la configuration du projet. Ce n'est pas l'objet de l'exercice.
+
+Par ailleurs, les entités ne sont pas particulièrement bien écrites. Elles peuvent être modifiées dans le cadre de cet exercice, mais ce n'est LEUR refactoring qui est visé.
+
+Ce qui est visé, c'est le refactoring de la méthode coursReussi de CoursServiceImpl. Néanmoins, dans le cadre de ce refactoring, les autres classes pourraient être impactées.
+
+### Que fait cette méthode?
+
+Elle va parcourir toutes les interrogations d'un élève pour un cours donné et vérifier si l'élève a réussi.
+
+Le calcul dépend du type de cours (propriété typeCours):
+
+- pour les cours principaux, il faut une moyenne de 60% sur l'ensemble des interros et 50% dans toutes le interros
+- pour les cours secondaires, il faut avoir réussi toutes les interros avec 50% au moins
+- les labos, il faut une moyenne de 50%
+
