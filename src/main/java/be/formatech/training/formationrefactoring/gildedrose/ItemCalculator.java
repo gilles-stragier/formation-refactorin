@@ -24,11 +24,11 @@ public class ItemCalculator {
         item.sellIn = item.sellIn - 1;
     }
 
-    void computeQuality() {
-        if (!isAgedBrie() && !isBackstagePass()) {
-            decreaseQuality();
-        } else {
+    protected void computeQuality() {
+        if (isAgedBrie() || isBackstagePass()) {
             increaseQuality();
+        } else {
+            decreaseQuality();
         }
     }
 
