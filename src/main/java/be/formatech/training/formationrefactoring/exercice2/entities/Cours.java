@@ -8,6 +8,14 @@ public class Cours {
     private String typeCours;
     private List<Eleve> eleves;
 
+    protected Cours() {
+    }
+
+    public Cours(String nom, String typeCours) {
+        this.nom = nom;
+        this.typeCours = typeCours;
+    }
+
     public void setTypeCours(String typeCours) {
         this.typeCours = typeCours;
     }

@@ -9,6 +9,13 @@ public class Interrogation {
     private double note;
     private double noteMax;
 
+    public Interrogation(Eleve eleve, Cours cours, double note, double noteMax) {
+        this.eleve = eleve;
+        this.cours = cours;
+        this.note = note;
+        this.noteMax = noteMax;
+    }
+
     /**
      * Retourne la note obtenue pour cette interrogation
      * @return
