@@ -8,4 +8,7 @@ public class SulfurasCalculator extends ItemCalculator {
 
     @Override
     protected void computeSellIn() {}
+
+    @Override
+    protected void decreaseQuality() {}
 }

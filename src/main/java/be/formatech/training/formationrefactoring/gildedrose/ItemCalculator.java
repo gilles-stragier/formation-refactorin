@@ -48,16 +48,10 @@ public class ItemCalculator {
         }
     }
 
-    void decreaseQuality() {
+    protected void decreaseQuality() {
         if (item.quality > 0) {
-            if (!isSulfuras()) {
-                item.quality = item.quality - 1;
-            }
+            item.quality = item.quality - 1;
         }
-    }
-
-    boolean isAgedBrie() {
-        return item.name.equals("Aged Brie");
     }
 
     boolean isBackstagePass() {
