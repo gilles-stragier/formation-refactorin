@@ -20,28 +20,6 @@ public class ItemCalculator {
         }
     }
 
-    protected void handleExpiration() {
-        if (isExpired()) {
-            decreaseQuality();
-        }
-    }
-
-    protected void computeSellIn() {
-        item.sellIn -= 1;
-    }
-
-    protected void computeQuality() {
-        decreaseQuality();
-    }
-
-    protected void increaseQuality() {
-        item.quality = Math.min(MAX_QUALITY, item.quality + 1);
-    }
-
-    protected void decreaseQuality() {
-        item.quality = Math.max(0, item.quality - 1);
-    }
-
     boolean isExpired() {
         return item.sellIn < 0;
     }
