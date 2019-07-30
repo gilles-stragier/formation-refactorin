@@ -7,6 +7,11 @@ public class BackstagePassCalculator extends ItemCalculator {
     }
 
     @Override
+    protected void computeQuality() {
+        increaseQuality();
+    }
+
+    @Override
     protected void handleExpiration() {
         item.quality = 0;
     }

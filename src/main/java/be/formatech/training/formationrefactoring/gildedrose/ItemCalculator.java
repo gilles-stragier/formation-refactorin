@@ -25,11 +25,7 @@ public class ItemCalculator {
     }
 
     protected void computeQuality() {
-        if (isAgedBrie() || isBackstagePass()) {
-            increaseQuality();
-        } else {
-            decreaseQuality();
-        }
+        decreaseQuality();
     }
 
     void increaseQuality() {
