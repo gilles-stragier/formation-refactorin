@@ -11,22 +11,20 @@ public class ItemCalculator {
     public void updateQuality() {
         computeQuality();
         computeSellIn();
-        handleExpiration();
+        if (isExpired()) {
+            handleExpiration();
+        }
     }
 
     void handleExpiration() {
-        if (isExpired()) {
-            if (!isAgedBrie()) {
-                if (!isBackstagePass()) {
-                    decreaseQuality();
-                } else {
-                    item.quality = 0;
-                }
-            } else {
-                if (item.quality < 50) {
-                    item.quality = item.quality + 1;
-                }
+        if (isAgedBrie()) {
+            if (item.quality < 50) {
+                item.quality = item.quality + 1;
             }
+        } else if (isBackstagePass()) {
+            item.quality = 0;
+        } else {
+            decreaseQuality();
         }
     }
 
