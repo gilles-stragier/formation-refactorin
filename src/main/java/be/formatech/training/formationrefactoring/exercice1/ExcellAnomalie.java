@@ -85,22 +85,23 @@ public class ExcellAnomalie {
 
         /* Trimestre demandé sous la forme 'AAAA0T' */
         String onssTrimestre = properties.getProperty("ONSSTRIMESTRE");
-        /*
-         * Type de lots demandé : - true => lots originaux (non rectificatifs) - false => lots rectificatifs
-         */
-        String trueOrFalse = properties.getProperty("ISORIGINAL").toLowerCase();
-
         /* Tester les arguments manquants */
         if (onssTrimestre == null) {
             LOGGER.error("*** FATAL ERROR missing arg 'ONSSTRIMESTRE'.");
-        }
-        if (trueOrFalse == null) {
-            LOGGER.error("*** FATAL ERROR missing arg 'ISORIGINAL'.");
-        }
-
-        if (onssTrimestre == null || trueOrFalse == null) {
             return;
         }
+
+
+        /*
+         * Type de lots demandé : - true => lots originaux (non rectificatifs) - false => lots rectificatifs
+         */
+
+
+        if (properties.getProperty("ISORIGINAL").toLowerCase() == null) {
+            LOGGER.error("*** FATAL ERROR missing arg 'ISORIGINAL'.");
+            return;
+        }
+
 
         /* Tester les valeurs invalides des arguments */
         boolean quarterOk = true;
@@ -120,14 +121,14 @@ public class ExcellAnomalie {
             quarterOk = false;
         }
 
-        boolean isOriginalOk = (",true,false,".indexOf(trueOrFalse) != -1);
-        boolean isOriginal = ("true".equals(trueOrFalse));
+        boolean isOriginalOk = (",true,false,".indexOf(properties.getProperty("ISORIGINAL").toLowerCase()) != -1);
+        boolean isOriginal = ("true".equals(properties.getProperty("ISORIGINAL").toLowerCase()));
 
         if (!quarterOk) {
             LOGGER.error("*** FATAL ERROR invalid value '" + onssTrimestre + "' for arg 'ONSSTRIMESTRE'.");
         }
         if (!isOriginalOk) {
-            LOGGER.error("*** FATAL ERROR invalid value '" + trueOrFalse + "' for arg 'ISORIGINAL'.");
+            LOGGER.error("*** FATAL ERROR invalid value '" + properties.getProperty("ISORIGINAL").toLowerCase() + "' for arg 'ISORIGINAL'.");
         }
         if (!quarterOk || !isOriginalOk) {
             return;

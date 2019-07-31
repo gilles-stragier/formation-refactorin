@@ -1,14 +1,24 @@
 package be.formatech.training.formationrefactoring.exercice1;
 
+import org.apache.poi.hssf.usermodel.HSSFRow;
+import org.apache.poi.hssf.usermodel.HSSFSheet;
+import org.apache.poi.hssf.usermodel.HSSFWorkbook;
 import org.junit.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+import java.io.File;
+import java.io.FileInputStream;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Comparator;
 import java.util.List;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 public class ExcellAnomalieTest {
+    private static final Logger LOGGER = LoggerFactory.getLogger(ExcellAnomalieTest.class);
     private static final String ERROR = "ERROR";
     private static final String WARNING="WARNING";
 
@@ -26,6 +36,41 @@ public class ExcellAnomalieTest {
     private final static String ANOMALIE_OLD_2 = ANOMALIE_OLD_2_LINE_1 + "\r\n" + ANOMALIE_OLD_2_LINE_2;
     private final static String ANOMALIE_OLD= ANOMALIE_OLD_1 + "\r\n" + ANOMALIE_OLD_2;
 
+    @Test
+    public void validateExcellFile() throws Exception {
+        ExcellAnomalie.main(null);
+
+        File[] candidates = new File("C:\\Temp").listFiles((dir, name) -> name.matches("toto_DMF_detail_2019T2_O_.*xls"));
+        Arrays.sort(candidates, Comparator.comparingLong(File::lastModified).reversed());
+        File file = Arrays.stream(candidates).findFirst().orElseThrow(() -> new IllegalStateException("On aurait dû avoir un rapport d'anomalie..."));
+        LOGGER.info("Selected Excel file: " + file.getAbsolutePath());
+
+        HSSFWorkbook myWorkBook = new HSSFWorkbook(new FileInputStream(file));
+        HSSFSheet sheet = myWorkBook.getSheetAt(0);
+        HSSFRow header = sheet.getRow(0);
+
+        String[] expectedHeaders = {
+                "TRIM", "Référence Succu", "Nom de la Succu", "Equipe", "N° gestionnaire", "Nom gestionnaire",
+                "N° Lot", "Type Déclaration", "Statut du dossier", "Dossier", "Nom du dossier", "Numéro du travailleur", "Nom du travailleur", "N° Activité", "Nom de l'activité",
+                "N° de contrat", "IND", "CAT", "Classification", "Catégorie de Rejet", "Libellé", "Date du statut"
+        };
+
+        for (int i=0; i < expectedHeaders.length; i++) {
+            assertEquals("La colonne " + i + " (0-based) n'a pas la valeur attendue.", expectedHeaders[i], header.getCell(i).toString());
+        }
+
+        Object[][] expectedRows = {
+                { "2019T2", "N", "Namur", "91", "N6", "Géraldine Macaux", "1234.0", "O", "rejet (03/03)", "038287", "Cesi", "", "", "", "", "", "", "", "", "ERROR", "***Error : Merveilleuse anomalie.", "13-07-2019" },
+                { "2019T2", "N", "Namur", "92", "NA", "Cynthia Benedetti", "1234.0", "O", "rejet (03/03)", "043711", "Traiteur Paulus", "", "", "", "", "", "", "", "", "ERROR", "***Error : Une autre anomalie.", "13-07-2019" }
+        };
+
+        for (int row=0; row < expectedRows.length; row++) {
+            HSSFRow currentRRow = sheet.getRow(row + 1);
+            for (int i = 0; i < expectedRows[row].length; i++) {
+                assertEquals("La colonne " + i + " de la ligne " + row+1  + "  (0-based) n'a pas la valeur attendue.", expectedRows[row][i], currentRRow.getCell(i).toString());
+            }
+        }
+    }
 
     @Test
     public void testBuildAnomaliesVauban() {
