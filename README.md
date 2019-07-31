@@ -25,6 +25,38 @@ We have recently signed a supplier of conjured items. This requires an update to
 “Conjured” items degrade in Quality twice as fast as normal items
 Feel free to make any changes to the UpdateQuality method and add any new code as long as everything still works correctly. However, do not alter the Item class or Items property as those belong to the goblin in the corner who will insta-rage and one-shot you as he doesn’t believe in shared code ownership (you can make the UpdateQuality method and Items property static if you like, we’ll cover for you).
 
+## Exercice 1
+
+Cet exercice est un cas réaliste tiré de l'application ForHRM. Il est donc assez conséquent et il est conseillé de l'aborder après les autres exercices...
+
+La classe à refactorer s'appelle `ExcellAnomalie`.
+Son objectif est de fournir un fichier Excel qui reprend toutes les anomalies de tous les dossiers du portefeuille dans le cadre des processus liés aux déclarations DMF d'un trimestre fourni en paramètre.
+
+Aucune classe de test n'est fournie, mais vous pouvez exécuter la méthode `main` de la classe `ExcellAnomalie` et observer ce qu'elle produit.
+
+Le fichier contient une ligne par anomalie constatée.
+
+Lorsque l'anomalie peut être associée à un dossier, les premières colonnes du fichier Excel contiennent la succursale où est géré le dossier, le numéro de l'équipe
+et le gestionnaire en charge du dossier.
+
+Ces anomalies peuvent se trouver à différents niveaux :
+* au niveau d'un lot de déclarations (problèmes de transmission ou de signature digitale),
+* au niveau d'un dossier repris dans un lot (pas de numéro ONSS ou numéro d'entreprise, présence de paies alors qu'on a annulé l'affiliation...)
+* au niveau des travailleur d'un dossier (niss inconnu)
+* au niveau du contrat d'un travailleur...
+
+Pour les besoins de l'exercice, les modifications suivantes ont été apportées : 
+* Le traitement complexe des paramètres du batch fournis à la ligne de commande ainsi que certaines propriétés récupérées d'un fichier properties
+a été remplacé par une liste de valeurs codées en dur et qui permettent d'exécuter l'application.
+* La requête SQL qui effectue la recherche des anomalie se compose d'une union (au sens SQL) de requêtes. Seule la partie relative au niveau dossier a été conservée.
+* L'application originale envoie les fichiers Excell par mail au demandeur. Ici, les fichiers sont produits dans le répertoire C:\Temp et y restent.
+* Pour éviter d'avoir besoin de toute l'application, la classe `ForException` a été remplacée par la classe `Exercice1Exception` et toutes les classes du package `java.sql`
+on été implémentées par un mock (toutes les classes qui se trouvent dans le package internal). Si une requête SQL change suite à votre refactoring, vous devrez
+adapter la classe internal.`Statement`.
+* Quelques petites dépendances à d'autres classes ou modules ForHRM ont été reprises dan les classes `Util` et `Connection`.
+* La classe `Trimestre` qui est présente dans un autre module de l'application vous est fournie car elle est susceptible de vous être utile.
+
+
 ## Exercice 2
 
 C'est un extrait d'un programme de gestion d'une école.
