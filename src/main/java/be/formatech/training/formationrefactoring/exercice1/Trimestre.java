@@ -214,6 +214,25 @@ public class Trimestre implements Serializable {
         return String.format("%1$04dT%2$01d", annee, numero);
     }
 
+    public int getNossEndingQuarterDateAsInt() {
+        int endingQuarterDate = (getNumero() / 10) * 10000;
+        switch (getNumero() % 10) {
+            case 1:
+                endingQuarterDate += 331;
+                break;
+            case 2:
+                endingQuarterDate += 630;
+                break;
+            case 3:
+                endingQuarterDate += 930;
+                break;
+            case 4:
+                endingQuarterDate += 1231;
+                break;
+        }
+        return endingQuarterDate;
+    }
+
     public Short asYYYYNNShort() {
         return Short.valueOf(asYYYYN());
     }

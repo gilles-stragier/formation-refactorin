@@ -355,7 +355,6 @@ public class ExcellAnomalie {
         /*
          * Type de lots demandé : - true => lots originaux (non rectificatifs) - false => lots rectificatifs
          */
-
         if (properties.getProperty("ISORIGINAL").toLowerCase() == null) {
             LOGGER.error("*** FATAL ERROR missing arg 'ISORIGINAL'.");
             return;
@@ -364,27 +363,13 @@ public class ExcellAnomalie {
             return;
         }
 
-        String mail_prefix_adress = "nobody"; // si un problème subsiste ...
-        String mail_adress = properties.getProperty("mail.adress");
-
-        int ndx = -1;
-        if (mail_adress != null) {
-            ndx = mail_adress.indexOf("@");
-        }
-        if (ndx != -1) {
-            mail_prefix_adress = mail_adress.substring(0, ndx);
-        }
-
-
         Trimestre trimestre = new Trimestre(properties.getProperty("ONSSTRIMESTRE"));
 
-        String fileName = mail_prefix_adress + "_DMF_detail_" + trimestre.asYYYYTN() + "_" + (("true".equals(properties.getProperty("ISORIGINAL").toLowerCase())) ? "O" : "R") + "_" + nowAsYYYYMMDDHHMMSS(LocalDateTime.now());
+        String fileName = computeMailPrefix(properties) + "_DMF_detail_" + trimestre.asYYYYTN() + "_" + formatLotType(properties) + "_" + nowAsYYYYMMDDHHMMSS(LocalDateTime.now());
 
-        /* Construction du chemin d'accès au fichier EXCEL (celui du reporting) */
-        /* Construction du nom complet du fichier EXCEL sans l'extension '.xls' */
         String fullPathFileName = new File(properties.getProperty("repertoire.rejet.dmf"), fileName).getAbsolutePath();
 
-        buildExcel(fullPathFileName, trimestre.asYYYYNNShort(), ("true".equals(properties.getProperty("ISORIGINAL").toLowerCase())));
+        buildExcel(fullPathFileName, trimestre, ("true".equals(properties.getProperty("ISORIGINAL").toLowerCase())));
 
         for (String name : this.filenames) {
             try {
@@ -395,18 +380,31 @@ public class ExcellAnomalie {
             }
         }
 
+    }
 
+    private String formatLotType(Properties properties) {
+        return ("true".equals(properties.getProperty("ISORIGINAL").toLowerCase())) ? "O" : "R";
+    }
+
+    private String computeMailPrefix(Properties properties) {
+        String mail_prefix_adress = "nobody"; // si un problème subsiste ...
+        String mail_adress = properties.getProperty("mail.adress");
+
+        if (mail_adress != null) {
+            int ndx = mail_adress.indexOf("@");
+
+            if (ndx != -1) {
+                mail_prefix_adress = mail_adress.substring(0, ndx);
+            }
+        }
+        return mail_prefix_adress;
     }
 
     String nowAsYYYYMMDDHHMMSS(LocalDateTime localDateTime) {
         return localDateTime.format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss"));
     }
 
-    private Integer getOnsstrimestreProperty(Properties properties) {
-        return Integer.valueOf(properties.getProperty("ONSSTRIMESTRE"));
-    }
-
-    private void buildExcel(String fullPathFileName, short quarterLikeYYYYQ, boolean isOriginal) {
+    private void buildExcel(String fullPathFileName, Trimestre trimestre, boolean isOriginal) {
 
         /*
          * Liste et numéro des colonnes demandées suivant l'analyse (pas toutes peuvent être réalisées (voir détail)
@@ -519,9 +517,8 @@ public class ExcellAnomalie {
 
         // 1ère passe
         File temp = null;
-        String YYYYQ = Short.valueOf(quarterLikeYYYYQ).toString();
-        String YYYY0Q = YYYYQ.substring(0, 4) + "0" + YYYYQ.substring(4);
-        int nossEndingDate = Util.getNossEndingQuarterDate(quarterLikeYYYYQ);
+
+        int nossEndingDate = Util.getNossEndingQuarterDate(trimestre.asYYYYNNShort());
         try {
             temp = File.createTempFile("test", ".poi");
             temp.deleteOnExit();
@@ -582,7 +579,7 @@ public class ExcellAnomalie {
                     + (isOriginal ? "not in" : "in")
                     + " ('R') and "
                     + "ol.travtrimestre = '"
-                    + YYYY0Q
+                    + trimestre.asYYYYNN()
                     + "' and "
                     + "ol.lotno = olc.lotno and "
                     + "a.identifiant like to_char(ol.lotno) || '.' || olc.empcode || '.______' )";
@@ -613,7 +610,7 @@ public class ExcellAnomalie {
                     // définie dans l'analyse
                 }
 
-                line[0] = YYYYQ.substring(0, 4) + "T" + YYYYQ.substring(4); // col.1
+                line[0] = trimestre.asYYYYTN(); // col.1
 
                 String refSuc = rs.getString(1);
                 if (refSuc == null) {
