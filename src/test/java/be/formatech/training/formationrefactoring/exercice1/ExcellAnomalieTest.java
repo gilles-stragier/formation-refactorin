@@ -11,7 +11,6 @@ import org.slf4j.LoggerFactory;
 import java.io.File;
 import java.io.FileInputStream;
 import java.time.LocalDateTime;
-import java.time.Month;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
@@ -39,7 +38,6 @@ public class ExcellAnomalieTest {
     private final static String ANOMALIE_OLD_2_LINE_2 = "SecondMessageLigne2";
     private final static String ANOMALIE_OLD_2 = ANOMALIE_OLD_2_LINE_1 + "\r\n" + ANOMALIE_OLD_2_LINE_2;
     private final static String ANOMALIE_OLD= ANOMALIE_OLD_1 + "\r\n" + ANOMALIE_OLD_2;
-
 
     @Test
     public void nowAsString(){
@@ -88,7 +86,7 @@ public class ExcellAnomalieTest {
 
     @Test
     public void testBuildAnomaliesVauban() {
-        List<String> result = ExcellAnomalie.buildAnomalies(ANOMALIE_VAUBAN);
+        List<String> result = ExcellAnomalie.splitAnomalyTextArea(ANOMALIE_VAUBAN);
         assertEquals(2, result.size());
         assertTrue(result.get(0).contains(ANOMALIE_VAUBAN_1));
         assertTrue(result.get(1).contains(ANOMALIE_VAUBAN_2));
@@ -96,7 +94,7 @@ public class ExcellAnomalieTest {
 
     @Test
     public void testBuildAnomaliesPreVauban() {
-        List<String> result = ExcellAnomalie.buildAnomalies(ANOMALIE_OLD);
+        List<String> result = ExcellAnomalie.splitAnomalyTextArea(ANOMALIE_OLD);
         assertEquals(2, result.size());
         assertEquals(ANOMALIE_OLD_1_LINE_1 + " " + ANOMALIE_OLD_1_LINE_2, result.get(0));
         assertEquals(ANOMALIE_OLD_2_LINE_1 + " " + ANOMALIE_OLD_2_LINE_2, result.get(1));

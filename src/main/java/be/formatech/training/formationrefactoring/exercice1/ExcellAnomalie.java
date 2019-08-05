@@ -14,7 +14,7 @@ import java.sql.SQLException;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
-import java.util.Calendar;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Properties;
 
@@ -82,7 +82,7 @@ public class ExcellAnomalie {
      * @param anomalie             contenu d'une cellule de la table OnssAnomalie
      * @return La liste des messages d'anomalie.
      */
-    protected static List<String> buildAnomalies(String anomalie) {
+    protected static List<String> splitAnomalyTextArea(String anomalie) {
 
         List<String> anomalies = new ArrayList<>();
         String[] anomalieLines = anomalie.split("\n");
@@ -135,7 +135,8 @@ public class ExcellAnomalie {
      * @param anomaliesVauban <code>true</code> si les messages sont au format postRefactoring Vauban de 2017, <code>false</code> sinon.
      * @return
      */
-    protected static List<String> buildTempFileLinesForAnomaly(String[] line, List<String> anomalies, boolean anomaliesVauban) {
+    protected static List<String> buildTempFileLinesForAnomaly(String[] immutableLine, List<String> anomalies, boolean anomaliesVauban) {
+        String[] line = Arrays.copyOf(immutableLine, immutableLine.length);
         List<String> tempFileLines = new ArrayList<>();
 
         for (String anomaly : anomalies) {
@@ -443,37 +444,45 @@ public class ExcellAnomalie {
                     continue;
                 }
 
-                String[] line = new String[33];
-                for (int j = 0; j < line.length; j++) {
-                    line[j] = "";
-                }
-
-                line[0] = trimestre.asYYYYTN();
-                line[1] = anomalyRecord.getRefSuc();
-                line[2] = anomalyRecord.getNomSuc();
-                line[3] = anomalyRecord.getRefEquip();
-                line[4] = anomalyRecord.getRefGest();
-                line[5] = anomalyRecord.getNomGest();
-                line[6] = anomalyRecord.getLotNo();
-                line[7] = ("O".equals(anomalyRecord.getLottype()) ? "O" : "R"); // col.8
-
-                line[8] = anomalyRecord.getStatut();
-                line[9] = anomalyRecord.getStatutActualisation();
-                line[10] = anomalyRecord.getOlc_statut();
-                line[11] = anomalyRecord.getOlc_statutActualisation();
-                line[12] = " ";
-                line[13] = " ";
-                line[14] = anomalyRecord.getEmpcode();
-
-                // line[29] (catégorie de rejet) et line[30] (message) seront remplis par la méthode buildTempFileLinesForAnomaly.
-
-                String yyyy_mm_dd = anomalyRecord.getTimeStatut().toString();
-                String dd_mm_yyyy = yyyy_mm_dd.substring(8) + "-" + yyyy_mm_dd.substring(5, 7) + "-" + yyyy_mm_dd.substring(0, 4);
-                line[31] = dd_mm_yyyy; // col.27
 
                 // Génération du contenu des lignes du fichier intermédiaire correspondant à la ligne du ResultSet
                 // et écriture de ces lignes dans le fichier.
-                List<String> tempFileLines = buildTempFileLinesForAnomaly(line, buildAnomalies(anomalyRecord.getAnomaly()), anomalyRecord.getAnomaly().matches(ANOMALIES_PATTERN));
+                List<String> anomalies = splitAnomalyTextArea(anomalyRecord.getAnomaly());
+
+                List<String> tempFileLines = new ArrayList<>();
+
+                for (String anomaly : anomalies) {
+
+
+                    String rejCat = INFO;
+                    String libelleAnomaly = null;
+
+                    if (anomalyRecord.getAnomaly().matches(ANOMALIES_PATTERN)) {
+				/*
+					Pour une version par du code post refactoring Vauban de 2017, il faut considérer qu'une anomalie codifiée
+					comme WARNING est à catégoriser comme ERROR. Pour éviter qu'on ne voie une catérie ERROR et dans
+					la colonne suivante un libellé commeçant par WARNING, il faut parser l'anomalie pour en extraire la
+					partie libellé.
+				 */
+                        String[] parts = anomaly.split("-\\d{3,5}##");
+                        String niveauRejet = parts[0];
+                        libelleAnomaly = parts[1];
+                        if (WARNING.equals(niveauRejet) || ERROR.equals(niveauRejet)) {
+                            rejCat = ERROR;
+                        }
+                    } else {
+                        libelleAnomaly = anomaly;
+                        if (anomaly.toUpperCase().indexOf(ERROR) != -1) {
+                            rejCat = ERROR;
+                        } else if (anomaly.toUpperCase().indexOf(WARNING) != -1) {
+                            rejCat = WARNING;
+                        }
+                    }
+
+                    ReportLine reportLine = new ReportLine(trimestre, anomalyRecord, rejCat, libelleAnomaly);
+                    // Production d'une ligne du fichier
+                    tempFileLines.add(String.join("\t", reportLine.toLine()));
+                }
 
                 for (String tempFileLine : tempFileLines) {
                     out.println(tempFileLine);
@@ -525,37 +534,7 @@ public class ExcellAnomalie {
                 line[8] = computeStatut(line); // contient finalement tous les statuts du context
 
                 if (!line[29].equals("ANOMALY")) {
-                    if (line[14] != null && line[14].trim().length() != 0) {
-                        Statement stmt11 = null;
-                        ResultSet rs11 = null;
-                        try {
-                            String sql11 = "select v11.valeurtext from valeur v11 " + "where v11.entite = 'EMPLOYEUR' and v11.parametre = 'EMPNOM' and "
-                                    + "v11.identifiant = '" + line[14] + "' and " + "v11.debutvalidite <= to_date('" + nossEndingDate + "', 'yyyymmdd') and "
-                                    + "v11.finvalidite >= to_date('" + nossEndingDate + "', 'yyyymmdd') ";
-                            stmt11 = Connexion.getConnection().createStatement();
-                            rs11 = stmt11.executeQuery(sql11);
-                            if (rs11.next()) {
-                                line[15] = rs11.getString(1);
-                            }
-                        } catch (SQLException | Exercice1Exception s) {
-                            LOGGER.error(s.getMessage(), s);
-                        } finally {
-                            if (rs11 != null) {
-                                try {
-                                    rs11.close();
-                                } catch (SQLException s) {
-                                    LOGGER.error(s.getMessage(), s);
-                                }
-                            }
-                            if (stmt11 != null) {
-                                try {
-                                    stmt11.close();
-                                } catch (SQLException s) {
-                                    LOGGER.error(s.getMessage(), s);
-                                }
-                            }
-                        }
-                    }
+                    line[15] = fetchEmpName(nossEndingDate, line[14]);
 
                     StringBuilder sMyWorkBookNum = new StringBuilder(Integer.valueOf(myWorkBookNum).toString());
                     StringBuilder sRowNum = new StringBuilder(Integer.valueOf(rowNum).toString());
@@ -577,6 +556,11 @@ public class ExcellAnomalie {
             LOGGER.error(e.getMessage(), e);
         }
 
+        writeWorkbookToDisk(fullPathFileName, vFilenames, myWorkBookNum, myWorkBook);
+
+    }
+
+    private void writeWorkbookToDisk(String fullPathFileName, List<String> vFilenames, int myWorkBookNum, HSSFWorkbook myWorkBook) {
         try {
             String fullPathFilename = fullPathFileName + "_" + myWorkBookNum + ".xls";
             FileOutputStream outWorkBook = new FileOutputStream(fullPathFilename);
@@ -590,7 +574,41 @@ public class ExcellAnomalie {
         } catch (IOException i) {
             LOGGER.error(i.getMessage(), i);
         }
+    }
 
+    private String fetchEmpName(int nossEndingDate, String empCode) {
+        if (empCode != null && empCode.trim().length() != 0) {
+            Statement stmt11 = null;
+            ResultSet rs11 = null;
+            try {
+                String sql11 = "select v11.valeurtext from valeur v11 " + "where v11.entite = 'EMPLOYEUR' and v11.parametre = 'EMPNOM' and "
+                        + "v11.identifiant = '" + empCode + "' and " + "v11.debutvalidite <= to_date('" + nossEndingDate + "', 'yyyymmdd') and "
+                        + "v11.finvalidite >= to_date('" + nossEndingDate + "', 'yyyymmdd') ";
+                stmt11 = Connexion.getConnection().createStatement();
+                rs11 = stmt11.executeQuery(sql11);
+                if (rs11.next()) {
+                    return rs11.getString(1);
+                }
+            } catch (SQLException | Exercice1Exception s) {
+                LOGGER.error(s.getMessage(), s);
+            } finally {
+                if (rs11 != null) {
+                    try {
+                        rs11.close();
+                    } catch (SQLException s) {
+                        LOGGER.error(s.getMessage(), s);
+                    }
+                }
+                if (stmt11 != null) {
+                    try {
+                        stmt11.close();
+                    } catch (SQLException s) {
+                        LOGGER.error(s.getMessage(), s);
+                    }
+                }
+            }
+        }
+        return "";
     }
 
     private String computeStatut(String[] line) {
