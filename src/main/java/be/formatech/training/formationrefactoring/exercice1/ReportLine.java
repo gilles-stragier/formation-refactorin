@@ -6,12 +6,15 @@ public class ReportLine {
     private AnomalyRecord anomalyRecord;
     private String libelleAnomaly;
     private String rejCat;
+    private String empName;
+    private String statut;
 
-    public ReportLine(Trimestre trimestre, AnomalyRecord anomalyRecord, String rejCat, String libelleAnomaly) {
+    public ReportLine(Trimestre trimestre, AnomalyRecord anomalyRecord, String rejCat, String libelleAnomaly, String empName) {
         this.trimestre = trimestre;
         this.anomalyRecord = anomalyRecord;
         this.rejCat = rejCat;
         this.libelleAnomaly = libelleAnomaly;
+        this.empName = empName;
     }
 
     public String[] toLine() {
@@ -29,13 +32,14 @@ public class ReportLine {
         line[6] = anomalyRecord.getLotNo();
         line[7] = ("O".equals(anomalyRecord.getLottype()) ? "O" : "R"); // col.8
 
-        line[8] = anomalyRecord.getStatut();
+        line[8] = statut;
         line[9] = anomalyRecord.getStatutActualisation();
         line[10] = anomalyRecord.getOlc_statut();
         line[11] = anomalyRecord.getOlc_statutActualisation();
         line[12] = " ";
         line[13] = " ";
         line[14] = anomalyRecord.getEmpcode();
+        line[15] = empName;
 
         String yyyy_mm_dd = anomalyRecord.getTimeStatut().toString();
         String dd_mm_yyyy = yyyy_mm_dd.substring(8) + "-" + yyyy_mm_dd.substring(5, 7) + "-" + yyyy_mm_dd.substring(0, 4);
@@ -48,4 +52,11 @@ public class ReportLine {
 
     }
 
+    public void setRejCat(String rejCat) {
+        this.rejCat = rejCat;
+    }
+
+    public void setStatut(String statut) {
+        this.statut = statut;
+    }
 }

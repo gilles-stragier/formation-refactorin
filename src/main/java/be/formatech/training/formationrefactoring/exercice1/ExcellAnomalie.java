@@ -420,10 +420,9 @@ public class ExcellAnomalie {
 
         int nossEndingDate = Util.getNossEndingQuarterDate(trimestre.asYYYYNNShort());
 
+        List<ReportLine> reportLines = new ArrayList<>();
+
         try {
-            temp = File.createTempFile("test", ".poi");
-            temp.deleteOnExit();
-            PrintWriter out = new PrintWriter(temp);
 
             // Par souci didactique, seules la partie de la query relative aux employeurs a été conservée... :-)
             String sql = buildQueryForAnomaliesInAQuarter(trimestre, isOriginal);
@@ -435,6 +434,8 @@ public class ExcellAnomalie {
             stmt = Connexion.getConnection().createStatement();
 
             rs = stmt.executeQuery(sql);
+
+
 
             while (rs.next()) {
 
@@ -449,25 +450,17 @@ public class ExcellAnomalie {
                 // et écriture de ces lignes dans le fichier.
                 List<String> anomalies = splitAnomalyTextArea(anomalyRecord.getAnomaly());
 
-                List<String> tempFileLines = new ArrayList<>();
+
 
                 for (String anomaly : anomalies) {
-
 
                     String rejCat = INFO;
                     String libelleAnomaly = null;
 
                     if (anomalyRecord.getAnomaly().matches(ANOMALIES_PATTERN)) {
-				/*
-					Pour une version par du code post refactoring Vauban de 2017, il faut considérer qu'une anomalie codifiée
-					comme WARNING est à catégoriser comme ERROR. Pour éviter qu'on ne voie une catérie ERROR et dans
-					la colonne suivante un libellé commeçant par WARNING, il faut parser l'anomalie pour en extraire la
-					partie libellé.
-				 */
-                        String[] parts = anomaly.split("-\\d{3,5}##");
-                        String niveauRejet = parts[0];
-                        libelleAnomaly = parts[1];
-                        if (WARNING.equals(niveauRejet) || ERROR.equals(niveauRejet)) {
+                        libelleAnomaly = anomaly.split("-\\d{3,5}##")[1];
+
+                        if (WARNING.equals(anomaly.split("-\\d{3,5}##")[0]) || ERROR.equals(anomaly.split("-\\d{3,5}##")[0])) {
                             rejCat = ERROR;
                         }
                     } else {
@@ -479,18 +472,15 @@ public class ExcellAnomalie {
                         }
                     }
 
-                    ReportLine reportLine = new ReportLine(trimestre, anomalyRecord, rejCat, libelleAnomaly);
-                    // Production d'une ligne du fichier
-                    tempFileLines.add(String.join("\t", reportLine.toLine()));
+                    ReportLine rep = new ReportLine(trimestre, anomalyRecord, rejCat, libelleAnomaly, fetchEmpName(nossEndingDate, anomalyRecord.getEmpcode()));
+                    reportLines.add(rep);
+
+                    rep.setStatut(computeStatut(anomalyRecord, rep));
                 }
 
-                for (String tempFileLine : tempFileLines) {
-                    out.println(tempFileLine);
-                }
             }
 
-            out.close();
-        } catch (IOException | SQLException | Exercice1Exception e) {
+        } catch (SQLException | Exercice1Exception e) {
             LOGGER.error(e.getMessage(), e);
         } finally {
             if (rs != null) {
@@ -509,51 +499,24 @@ public class ExcellAnomalie {
             }
         }
 
-        // 2ème passe
-
         List<String> vFilenames = new ArrayList<>();
         int myWorkBookNum = 0;
         HSSFWorkbook myWorkBook = null;
         HSSFSheet mySheet;
         int rowNum = 0;
 
-        try (BufferedReader in = new BufferedReader(new FileReader(temp))) {
+        for (ReportLine rl : reportLines) {
+            StringBuilder sMyWorkBookNum = new StringBuilder(Integer.valueOf(myWorkBookNum).toString());
+            StringBuilder sRowNum = new StringBuilder(Integer.valueOf(rowNum).toString());
+            myWorkBook = createNextRow(fullPathFileName, sMyWorkBookNum, vFilenames, myWorkBook, headerLine, sRowNum, rl.toLine());
+            myWorkBookNum = Integer.valueOf(sMyWorkBookNum.toString());
+            rowNum = Integer.valueOf(sRowNum.toString());
+        }
 
-            String inLine;
-
-            while ((inLine = in.readLine()) != null) {
-                String[] line = inLine.split("\t");
-                if (line.length == 0 || line.length != 32) {
-                    continue;
-                }
-
-                if (line[14] != null && line[14].trim().length() != 0) {
-                    line[2] = fetchSuccu(nossEndingDate, line[14]);
-                }
-
-                line[8] = computeStatut(line); // contient finalement tous les statuts du context
-
-                if (!line[29].equals("ANOMALY")) {
-                    line[15] = fetchEmpName(nossEndingDate, line[14]);
-
-                    StringBuilder sMyWorkBookNum = new StringBuilder(Integer.valueOf(myWorkBookNum).toString());
-                    StringBuilder sRowNum = new StringBuilder(Integer.valueOf(rowNum).toString());
-                    myWorkBook = createNextRow(fullPathFileName, sMyWorkBookNum, vFilenames, myWorkBook, headerLine, sRowNum, line);
-                    myWorkBookNum = Integer.valueOf(sMyWorkBookNum.toString());
-                    rowNum = Integer.valueOf(sRowNum.toString());
-
-                }
-            }
-
-            if (myWorkBook == null) { // création feuille Excel sans résultats
-                myWorkBook = new HSSFWorkbook();
-                mySheet = myWorkBook.createSheet();
-                createNewWorkBook(mySheet, headerLine);
-            }
-
-
-        } catch (IOException e) {
-            LOGGER.error(e.getMessage(), e);
+        if (myWorkBook == null) { // création feuille Excel sans résultats
+            myWorkBook = new HSSFWorkbook();
+            mySheet = myWorkBook.createSheet();
+            createNewWorkBook(mySheet, headerLine);
         }
 
         writeWorkbookToDisk(fullPathFileName, vFilenames, myWorkBookNum, myWorkBook);
@@ -611,18 +574,18 @@ public class ExcellAnomalie {
         return "";
     }
 
-    private String computeStatut(String[] line) {
+    private String computeStatut(AnomalyRecord record, ReportLine reportLine) {
         /* Traduction des statuts du lot ou de la société */
-        String olStat = line[8];
-        String olStatActu = line[9];
-        String olcStat = line[10];
-        String olcStatActu = line[11];
+        String olStat = record.getStatut();
+        String olStatActu = record.getStatutActualisation();
+        String olcStat = record.getOlc_statut();
+        String olcStatActu = record.getOlc_statutActualisation();
 
         String statut = null;
 
-        if (line[14] != null && line[14].trim().length() != 0) {
+        if (record.getEmpcode() != null && record.getEmpcode().trim().length() != 0) {
             // ligne société, travailleur ou contrat
-            if ("O".equals(line[7])) { // lot orig.
+            if ("O".equals(record.getLottype())) { // lot orig.
                 if ("05".equals(olcStat)) {
                     // Implique que la société est à (re)générer
                     statut = "à corriger";
@@ -669,21 +632,13 @@ public class ExcellAnomalie {
                         // Ce qui suit écrase la valeur précèdente de 'rejCat'
                         // qui ne peut qu'être moins relevante
                         if ("40".equals(olcStat)) {
-                            line[29] = ERROR;
-                        } else {
-                            if (",60,61,62,".contains("," + line[12].trim() + ",")) {
-                                line[29] = "ANOMALY";
-                            }
+                            reportLine.setRejCat(ERROR);
                         }
                     } else {
                         statut = "?"; // cas imprévu !
                     }
                 }
-                if (line[12] != null && line[12].trim().length() != 0) {
-                    statut += " (" + line[8] + "/" + line[10] + "/" + line[12] + ")";
-                } else {
-                    statut += " (" + line[8] + "/" + line[10] + ")";
-                }
+                statut += " (" + record.getStatut() + "/" + record.getOlc_statut() + ")";
             } else { // lot rectif.
                 if ("00".equals(olStat)) {
                     statut = "consultation "; // phase 1 : consultation de la déclaration actuelle chez l'ONSS
@@ -772,22 +727,16 @@ public class ExcellAnomalie {
                     // Ce qui suit écrase la valeur précèdente de 'rejCat'
                     // qui ne peut qu'être moins relevante
                     if ("40".equals(olcStat)) {
-                        line[29] = ERROR;
-                    } else if (",160,161,162,".indexOf("," + line[12].trim() + ",") != -1) {
-                        line[29] = "ANOMALY"; // écrase la valeur précèdente qui ne peut être moins relevante
+                        reportLine.setRejCat(ERROR);
                     }
                 } else {
                     statut = "?"; // cas imprévu !
                 }
-                if ((line[12] != null && line[12].trim().length() != 0) || (line[13] != null && line[13].trim().length() != 0)) {
-                    statut += " (" + line[8] + "," + line[9] + "/" + line[10] + "," + line[11] + ")";
-                } else {
-                    statut += " (" + line[8] + "," + line[9] + "/" + line[10] + "," + line[11] + "/" + line[12] + "," + line[13] + ")";
-                }
+
             }
-        } else if (line[6] != null && line[6].trim().length() != 0) {
+        } else if (record.getLotNo() != null && record.getLotNo().trim().length() != 0) {
             // ligne lot ou indice
-            if ("O".equals(line[7])) { // lot orig.
+            if ("O".equals(record.getLottype())) { // lot orig.
                 if ("01".equals(olStat)) {
                     // Implique que toutes les sociétés sont à (re)générer
                     statut = "à générer";
@@ -822,7 +771,7 @@ public class ExcellAnomalie {
                 } else {
                     statut = "?"; // cas imprévu !
                 }
-                statut += " (" + line[8] + ")";
+                statut += " (" + record.getStatut() + ")";
             } else { // lot rectif.
                 // phase 1 : consultation de la déclaration actuelle chez l'ONSS
                 if ("00".equals(olStat)) {
@@ -881,7 +830,7 @@ public class ExcellAnomalie {
                 } else {
                     statut = "?"; // cas imprévu !
                 }
-                statut += " (" + line[8] + "," + line[9] + ")";
+                statut += " (" + record.getStatut() + "," + record.getStatutActualisation() + ")";
             }
         }
         return statut;
