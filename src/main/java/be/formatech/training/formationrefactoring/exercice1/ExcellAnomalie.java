@@ -449,40 +449,26 @@ public class ExcellAnomalie {
                     line[j] = "";
                 }
 
-                line[0] = trimestre.asYYYYTN(); // col.1
+                line[0] = trimestre.asYYYYTN();
                 line[1] = anomalyRecord.getRefSuc();
+                line[2] = anomalyRecord.getNomSuc();
+                line[3] = anomalyRecord.getRefEquip();
+                line[4] = anomalyRecord.getRefGest();
+                line[5] = anomalyRecord.getNomGest();
+                line[6] = anomalyRecord.getLotNo();
+                line[7] = ("O".equals(anomalyRecord.getLottype()) ? "O" : "R"); // col.8
 
-                String nomSuc = rs.getString(2);
-                line[2] = nomSuc; // col.3
-
-                String refEquip = rs.getString(3);
-                line[3] = refEquip; // col.4
-
-                String refGest = rs.getString(4);
-                line[4] = refGest; // col.5
-
-                String nomGest = rs.getString(5);
-                line[5] = nomGest; // col.6
-
-                Long lotNo = rs.getLong(6);
-                line[6] = lotNo.toString(); // col.7
-
-                String lottype = rs.getString(7);
-                line[7] = ("O".equals(lottype) ? "O" : "R"); // col.8
-
-                line[8] = rs.getString(8); // col.9a
-                line[9] = rs.getString(9); // col.9b
-                line[10] = rs.getString(10); // col.9c
-                line[11] = rs.getString(11); // col.9d
-                line[12] = rs.getString(12); // col.9c
-                line[13] = rs.getString(13); // col.9d
-
-                String empCode = rs.getString(14);
-                line[14] = empCode; // col.10
+                line[8] = anomalyRecord.getStatut();
+                line[9] = anomalyRecord.getStatutActualisation();
+                line[10] = anomalyRecord.getOlc_statut();
+                line[11] = anomalyRecord.getOlc_statutActualisation();
+                line[12] = " ";
+                line[13] = " ";
+                line[14] = anomalyRecord.getEmpcode();
 
                 // line[29] (catégorie de rejet) et line[30] (message) seront remplis par la méthode buildTempFileLinesForAnomaly.
 
-                String yyyy_mm_dd = rs.getDate(21).toString();
+                String yyyy_mm_dd = anomalyRecord.getTimeStatut().toString();
                 String dd_mm_yyyy = yyyy_mm_dd.substring(8) + "-" + yyyy_mm_dd.substring(5, 7) + "-" + yyyy_mm_dd.substring(0, 4);
                 line[31] = dd_mm_yyyy; // col.27
 
