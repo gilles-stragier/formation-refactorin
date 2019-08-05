@@ -9,12 +9,7 @@ import org.apache.poi.hssf.usermodel.HSSFWorkbook;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.FileReader;
-import java.io.IOException;
-import java.io.PrintWriter;
+import java.io.*;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Calendar;
@@ -24,25 +19,19 @@ import java.util.Properties;
 /**
  * <b>Exercice 1 : Cette classe est une simplification de la classe ExcellAnomalie de ForHRM.</b>
  * <p>
- *     Les dépendances vers les autres classes de l'application ont soit été supprimées, soit le fragment nécessaire des
- *     classes dépendantes a été recopié, soit ont été mockées. C'est en particulier le cas des classes du package "java.sql"
- *     permettant l'accès à la base de données. L'implémentation simplifiée se trouve dans le package "internal".
+ * Les dépendances vers les autres classes de l'application ont soit été supprimées, soit le fragment nécessaire des
+ * classes dépendantes a été recopié, soit ont été mockées. C'est en particulier le cas des classes du package "java.sql"
+ * permettant l'accès à la base de données. L'implémentation simplifiée se trouve dans le package "internal".
  * </p>
  * <p>
- *     Il est donc interdit de toucher aux classes du package "internal" puisqu'elles sont censées faire partie du JDK voire
- *     d'autres bibliothèques. Toutefois, comme les requêtes à la base de données sont simulées, si vous tenez absolument à toucher
- *     aux requêtes SQL ou si vous modifiez les paramètres qui sont passés à cette requête, vous devrez modifier la constante
- *     {@link Statement#QUERY_LOTS} pour qu'elle corresponde à votre nouvelle requête et la constante {@link Statement#RESULT_LOTS}
- *     qui contient les résultats retournés par la requête.
+ * Il est donc interdit de toucher aux classes du package "internal" puisqu'elles sont censées faire partie du JDK voire
+ * d'autres bibliothèques. Toutefois, comme les requêtes à la base de données sont simulées, si vous tenez absolument à toucher
+ * aux requêtes SQL ou si vous modifiez les paramètres qui sont passés à cette requête, vous devrez modifier la constante
+ * {@link Statement#QUERY_LOTS} pour qu'elle corresponde à votre nouvelle requête et la constante {@link Statement#RESULT_LOTS}
+ * qui contient les résultats retournés par la requête.
  * </p>
  */
 public class ExcellAnomalie {
-    private static final Logger LOGGER = LoggerFactory.getLogger(ExcellAnomalie.class);
-    private static final String ERROR = "ERROR";
-    private static final String WARNING="WARNING";
-    private static final String INFO="INFO";
-    static final int MAXROW = 65535; // dernier numéro de ligne sur une feuille (numérotées de 0 à 65535)
-
     /**
      * Expression régulière décrivant le format d'encodage des anomalies dans la gestion des lots DMFA/DMWA adopté dans le
      * cadre du refactoring Vauban de 2017..
@@ -50,14 +39,17 @@ public class ExcellAnomalie {
      * Le format complet de codage des <code>LotAnomalie</code> est décrit par {@link #ANOMALIES_PATTERN}.
      */
     public static final String WARNING_PATTERN = "(WARNING|ERROR)-\\d{3,5}##";
-
     /**
      * Les anomalies associées à un identifient sont une suite de 1 ou plusieurs anomalies (d'où la forme "(....)+" de l'expression régulière).
      * Chaque anomalie est codée sour la forme d'un pattern composé du mot WARNING, d'un tiret, d'un numéro d'anomalie,
      * d'un séparateur ("##") et d'un message terminé par une des différentes formes possibles de retour à la ligne.
      */
     public static final String ANOMALIES_PATTERN = "(" + WARNING_PATTERN + ".+(\\r\\n|\\r|\\n))+";
-
+    static final int MAXROW = 65535; // dernier numéro de ligne sur une feuille (numérotées de 0 à 65535)
+    private static final Logger LOGGER = LoggerFactory.getLogger(ExcellAnomalie.class);
+    private static final String ERROR = "ERROR";
+    private static final String WARNING = "WARNING";
+    private static final String INFO = "INFO";
     private String[] filenames;
 
     public static void main(String[] args) {
@@ -81,58 +73,297 @@ public class ExcellAnomalie {
         }
     }
 
-    protected  void executeBatch(Properties properties) throws Exercice1Exception {
+    /**
+     * Construction d'une liste de messages d'anomalies sur base du contenu du message contenu dans une ligne de la table
+     * OnssAnomalie. Un message de la liste résultat tient en une seule ligne.
+     *
+     * @param anomalie             contenu d'une cellule de la table OnssAnomalie
+     * @param anomalieFormatVauban <code>true</code> si l'anomalie passée en premier argument est encodée dans le format
+     *                             mis en application à l'occasion du refactoring Vauban de 2017.
+     * @return La liste des messages d'anomalie.
+     */
+    protected static List<String> buildAnomalies(String anomalie, boolean anomalieFormatVauban) {
+        List<String> anomalies = new ArrayList<>();
+        String[] anomalieLines = anomalie.split("\n");
+        for (int i = 0; i < anomalieLines.length; i++) {
+            StringBuilder oneLine = new StringBuilder();
+					/*
+						En fonction du fait que l'anomalie ait été produite par du code post refactoring Vauban de 2017 ou
+						du code antérieur, il faut déterminer le libellé qui sera rapporté.
 
-        /* Trimestre demandé sous la forme 'AAAA0T' */
-        String onssTrimestre = properties.getProperty("ONSSTRIMESTRE");
-        /* Tester les arguments manquants */
-        if (onssTrimestre == null) {
-            LOGGER.error("*** FATAL ERROR missing arg 'ONSSTRIMESTRE'.");
-            return;
+						Pour une version du code antérieure au refactoring Vauban, il n'y a à priori qu'une erreur par ligne
+						de la table ONSSANOMALIE, mais le libellé de l'erreur peut tenir en plusieurs lignes. Il faut dans ce cas
+						lire toutes les lignes consécutives en de la même erreur en une fois et supprimer les retours à la ligne.
+					 */
+            String currentLibelle = anomalieLines[i].trim();
+
+            if (anomalieFormatVauban) {
+                // Code post refactoring Vauban 2017
+                oneLine.append(currentLibelle);
+            } else {
+                // Code pré refactoring Vauban 2017
+                // Dans ce code on peut retrouver une erreur sur plusieurs lignes
+                oneLine.append(currentLibelle);
+                // Lire toutes les lignes qui font partie de la même erreur pour n'en faire qu'une seule.
+                // Dans les messages sur plusieurs ligne, la deuxième ligne et les lignes suivantes ne sont pas sencées contenir
+                // les mots INFO, WARNING et ERROR ni en majuscule, ni en minuscule...
+                // Donc on boucle tant qu'on ne retrouve pas une telle ligne, puis comme on
+                // a lu une ligne de trop, on revient en arrière d'une ligne (une sorte de "put back").
+                i++;
+                while (i < anomalieLines.length && !anomalieLines[i].toUpperCase().contains(ERROR)
+                        && !anomalieLines[i].toUpperCase().contains(WARNING) && !anomalieLines[i].toUpperCase().contains(INFO)) {
+                    oneLine.append(" " + anomalieLines[i].replace("\r", "").replace("\n", "").trim());
+                    i++;
+                }
+                i--;
+            }
+            anomalies.add(oneLine.toString());
+        }
+        return anomalies;
+    }
+
+    /**
+     * Construit une liste de lignes à écrire dans le fichier temporaire sur base d'un modèle de ligne qui reprend toutes
+     * les informations communes à une liste d'anomalies ayant le même identifiant dans la table OnssAnomalie.
+     *
+     * @param line            Ensemble des 32 informations de base d'une liste à faire figurer dans le fichier temporaire, et donc
+     *                        dans le fichier Excel, à l'exception des messages d'anomalies (line[30]) et du statut d'erreur qui
+     *                        découle de ces anomalies (line[29])
+     * @param anomalies       liste des messages d'anomalie
+     * @param anomaliesVauban <code>true</code> si les messages sont au format postRefactoring Vauban de 2017, <code>false</code> sinon.
+     * @return
+     */
+    protected static List<String> buildTempFileLinesForAnomaly(String[] line, List<String> anomalies, boolean anomaliesVauban) {
+        List<String> tempFileLines = new ArrayList<>();
+
+        for (String anomaly : anomalies) {
+            String rejCat = INFO;
+            if (anomaliesVauban) {
+				/*
+					Pour une version par du code post refactoring Vauban de 2017, il faut considérer qu'une anomalie codifiée
+					comme WARNING est à catégoriser comme ERROR. Pour éviter qu'on ne voie une catérie ERROR et dans
+					la colonne suivante un libellé commeçant par WARNING, il faut parser l'anomalie pour en extraire la
+					partie libellé.
+				 */
+                String[] parts = anomaly.split("-\\d{3,5}##");
+                String niveauRejet = parts[0];
+                line[30] = parts[1]; // col.26
+                if (WARNING.equals(niveauRejet) || ERROR.equals(niveauRejet)) {
+                    rejCat = ERROR;
+                }
+            } else {
+                line[30] = anomaly;
+                if (anomaly.toUpperCase().indexOf(ERROR) != -1) {
+                    rejCat = ERROR;
+                } else if (anomaly.toUpperCase().indexOf(WARNING) != -1) {
+                    rejCat = WARNING;
+                }
+            }
+            line[29] = rejCat; // col.25
+
+            // Production d'une ligne du fichier
+            tempFileLines.add(String.join("\t", line));
+        }
+        return tempFileLines;
+    }
+
+    private static int createNewWorkBook(HSSFSheet mySheet, String[] headerLine) {
+        // renvoi le nombre de lignes créés dans le header (1 en principe)
+        mySheet.setColumnWidth(2, (short) 3000);
+        mySheet.setColumnWidth(5, (short) 5000);
+        mySheet.setColumnWidth(8, (short) 4000);
+        mySheet.setColumnWidth(10, (short) 3000);
+        mySheet.setColumnWidth(12, (short) 5000);
+        mySheet.setColumnWidth(14, (short) 3000);
+        mySheet.setColumnWidth(18, (short) 10000);
+        mySheet.setColumnWidth(19, (short) 3000);
+        mySheet.setColumnWidth(20, (short) 30000);
+        int rowNum = 0;
+        HSSFRow myRow = mySheet.createRow(rowNum++);
+        int cellNum = 0;
+        HSSFCell myCell = myRow.createCell(cellNum++);
+        myCell.setCellValue(headerLine[0]);
+        myCell = myRow.createCell(cellNum++);
+        myCell.setCellValue(headerLine[1]);
+        myCell = myRow.createCell(cellNum++);
+        myCell.setCellValue(headerLine[2]);
+        myCell = myRow.createCell(cellNum++);
+        myCell.setCellValue(headerLine[3]);
+        myCell = myRow.createCell(cellNum++);
+        myCell.setCellValue(headerLine[4]);
+        myCell = myRow.createCell(cellNum++);
+        myCell.setCellValue(headerLine[5]);
+        myCell = myRow.createCell(cellNum++);
+        myCell.setCellValue(headerLine[6]);
+        myCell = myRow.createCell(cellNum++);
+        myCell.setCellValue(headerLine[7]);
+        myCell = myRow.createCell(cellNum++);
+        myCell.setCellValue(headerLine[8]);
+        myCell = myRow.createCell(cellNum++);
+        myCell.setCellValue(headerLine[9]);
+        myCell = myRow.createCell(cellNum++);
+        myCell.setCellValue(headerLine[10]);
+        myCell = myRow.createCell(cellNum++);
+        myCell.setCellValue(headerLine[11]);
+        myCell = myRow.createCell(cellNum++);
+        myCell.setCellValue(headerLine[12]);
+        myCell = myRow.createCell(cellNum++);
+        myCell.setCellValue(headerLine[13]);
+        myCell = myRow.createCell(cellNum++);
+        myCell.setCellValue(headerLine[14]);
+        myCell = myRow.createCell(cellNum++);
+        myCell.setCellValue(headerLine[15]);
+        myCell = myRow.createCell(cellNum++);
+        myCell.setCellValue(headerLine[17]);
+        myCell = myRow.createCell(cellNum++);
+        myCell.setCellValue(headerLine[18]);
+        myCell = myRow.createCell(cellNum++);
+        myCell.setCellValue(headerLine[23]);
+        myCell = myRow.createCell(cellNum++);
+        myCell.setCellValue(headerLine[24]);
+        myCell = myRow.createCell(cellNum++);
+        myCell.setCellValue(headerLine[25]);
+        myCell = myRow.createCell(cellNum++);
+        myCell.setCellValue(headerLine[26]);
+        return rowNum;
+    }
+
+    private static int createRow(HSSFSheet mySheet, int rowNum, String[] line) {
+        HSSFRow myRow = mySheet.createRow(rowNum++);
+        int cellNum = 0;
+        HSSFCell myCell = myRow.createCell(cellNum++);
+        myCell.setCellValue(line[0]);
+
+        myCell = myRow.createCell(cellNum++);
+        myCell.setCellValue(line[1]);
+
+        myCell = myRow.createCell(cellNum++);
+        myCell.setCellValue(line[2]);
+
+        myCell = myRow.createCell(cellNum++);
+        myCell.setCellValue(line[3]);
+
+        myCell = myRow.createCell(cellNum++);
+        myCell.setCellValue(line[4]);
+
+        myCell = myRow.createCell(cellNum++);
+        myCell.setCellValue(line[5]);
+
+        myCell = myRow.createCell(cellNum++);
+        myCell.setCellValue(Long.valueOf(line[6]).longValue());
+
+        myCell = myRow.createCell(cellNum++);
+        myCell.setCellValue(line[7]);
+
+        myCell = myRow.createCell(cellNum++);
+        myCell.setCellValue(line[8]);
+
+        myCell = myRow.createCell(cellNum++);
+        myCell.setCellValue(line[14]);
+
+        myCell = myRow.createCell(cellNum++);
+        myCell.setCellValue(line[15]);
+
+        myCell = myRow.createCell(cellNum++);
+        myCell.setCellValue(line[16]);
+
+        myCell = myRow.createCell(cellNum++);
+        myCell.setCellValue(line[17]);
+
+        myCell = myRow.createCell(cellNum++);
+        myCell.setCellValue(line[18]);
+
+        myCell = myRow.createCell(cellNum++);
+        myCell.setCellValue(line[19]);
+
+        myCell = myRow.createCell(cellNum++);
+        myCell.setCellValue(line[20]);
+
+        myCell = myRow.createCell(cellNum++);
+        myCell.setCellValue(line[22]);
+
+        myCell = myRow.createCell(cellNum++);
+        myCell.setCellValue(line[23]);
+
+        myCell = myRow.createCell(cellNum++);
+        myCell.setCellValue(line[28]);
+
+        myCell = myRow.createCell(cellNum++);
+        myCell.setCellValue(line[29]);
+
+        myCell = myRow.createCell(cellNum++);
+        myCell.setCellValue(line[30]);
+
+        myCell = myRow.createCell(cellNum++);
+        myCell.setCellValue(line[31]);
+
+        return rowNum;
+    }
+
+    private static HSSFWorkbook createNextRow(String fullPathFileName, StringBuilder sMyWorkBookNum, // argument
+                                              // myWorkBookNum++
+                                              // !!!
+                                              List<String> vFilenames, HSSFWorkbook myWorkBook, String[] headerLine, StringBuilder sRowNum, String[] line) {
+
+        int rowNum = Integer.valueOf(sRowNum.toString());
+
+        HSSFSheet mySheet;
+
+        if (myWorkBook == null || rowNum > MAXROW) {
+
+            if (myWorkBook != null) {
+                try {
+                    int myWorkBookNum = Integer.valueOf(sMyWorkBookNum.toString());
+                    String fullPathFilename = fullPathFileName + "_" + (myWorkBookNum++) + ".xls";
+                    sMyWorkBookNum.setLength(0);
+                    sMyWorkBookNum.append(myWorkBookNum);
+                    FileOutputStream outWorkBook = new FileOutputStream(fullPathFilename);
+                    myWorkBook.write(outWorkBook);
+                    outWorkBook.close();
+                    vFilenames.add(fullPathFilename);
+                } catch (IOException i) {
+                    LOGGER.error(i.getMessage(), i);
+                }
+            }
+
+            myWorkBook = new HSSFWorkbook();
+            mySheet = myWorkBook.createSheet();
+            rowNum = createNewWorkBook(mySheet, headerLine);
         }
 
+        mySheet = myWorkBook.getSheetAt(0);
+        rowNum = createRow(mySheet, rowNum, line);
+
+        sRowNum.setLength(0);
+        sRowNum.append(rowNum);
+        return myWorkBook;
+
+    }
+
+    protected void executeBatch(Properties properties) throws Exercice1Exception {
+
+        /* Tester les arguments manquants */
+        if (properties.getProperty("ONSSTRIMESTRE") == null) {
+            LOGGER.error("*** FATAL ERROR missing arg 'ONSSTRIMESTRE'.");
+            return;
+        } else if (!validateQuarter(properties.getProperty("ONSSTRIMESTRE"))) {
+            return;
+        }
 
         /*
          * Type de lots demandé : - true => lots originaux (non rectificatifs) - false => lots rectificatifs
          */
 
-
         if (properties.getProperty("ISORIGINAL").toLowerCase() == null) {
             LOGGER.error("*** FATAL ERROR missing arg 'ISORIGINAL'.");
             return;
-        }
-
-
-        /* Tester les valeurs invalides des arguments */
-        boolean quarterOk = true;
-        short quarter = 20104;
-        try {
-            int yyyy0q = Integer.valueOf(onssTrimestre).intValue();
-            int yyyy = yyyy0q / 100;
-            if (yyyy < 2000 || yyyy > 2099) {
-                quarterOk = false;
-            }
-            int q = yyyy0q % 100;
-            if (q < 1 || q > 4) {
-                quarterOk = false;
-            }
-            quarter = (short) ((yyyy * 10) + q);
-        } catch (Exception e) {
-            quarterOk = false;
-        }
-
-        boolean isOriginalOk = (",true,false,".indexOf(properties.getProperty("ISORIGINAL").toLowerCase()) != -1);
-        boolean isOriginal = ("true".equals(properties.getProperty("ISORIGINAL").toLowerCase()));
-
-        if (!quarterOk) {
-            LOGGER.error("*** FATAL ERROR invalid value '" + onssTrimestre + "' for arg 'ONSSTRIMESTRE'.");
-        }
-        if (!isOriginalOk) {
+        } else if (!(",true,false,".indexOf(properties.getProperty("ISORIGINAL").toLowerCase()) != -1)) {
             LOGGER.error("*** FATAL ERROR invalid value '" + properties.getProperty("ISORIGINAL").toLowerCase() + "' for arg 'ISORIGINAL'.");
-        }
-        if (!quarterOk || !isOriginalOk) {
             return;
         }
+
+        short quarter = (short) (((trimestreYear(getOnsstrimestreProperty(properties))) * 10) + (trimestreQuarter(getOnsstrimestreProperty(properties))));
+
 
         String repertoire = "";
         String mail_prefix_adress = "nobody"; // si un problème subsiste ...
@@ -175,7 +406,7 @@ public class ExcellAnomalie {
             ss = "0" + ss;
         }
 
-        String fileName = mail_prefix_adress + "_DMF_detail_" + yearOfQuarter + "T" + quarterOfYear + "_" + (isOriginal ? "O" : "R") + "_" + yyyy + mm + dd
+        String fileName = mail_prefix_adress + "_DMF_detail_" + yearOfQuarter + "T" + quarterOfYear + "_" + (("true".equals(properties.getProperty("ISORIGINAL").toLowerCase())) ? "O" : "R") + "_" + yyyy + mm + dd
                 + hh + mi + ss;
 
         /* Construction du chemin d'accès au fichier EXCEL (celui du reporting) */
@@ -183,7 +414,7 @@ public class ExcellAnomalie {
         String fullPathFileName = repertoire + fileName;
 
 
-        buildExcel(fullPathFileName, quarter, isOriginal);
+        buildExcel(fullPathFileName, quarter, ("true".equals(properties.getProperty("ISORIGINAL").toLowerCase())));
 
         for (String name : this.filenames) {
             try {
@@ -195,6 +426,10 @@ public class ExcellAnomalie {
         }
 
 
+    }
+
+    private Integer getOnsstrimestreProperty(Properties properties) {
+        return Integer.valueOf(properties.getProperty("ONSSTRIMESTRE"));
     }
 
     private void buildExcel(String fullPathFileName, short quarterLikeYYYYQ, boolean isOriginal) {
@@ -890,269 +1125,31 @@ public class ExcellAnomalie {
 
     }
 
-    /**
-     * Construction d'une liste de messages d'anomalies sur base du contenu du message contenu dans une ligne de la table
-     * OnssAnomalie. Un message de la liste résultat tient en une seule ligne.
-     * @param anomalie contenu d'une cellule de la table OnssAnomalie
-     * @param anomalieFormatVauban <code>true</code> si l'anomalie passée en premier argument est encodée dans le format
-     *                             mis en application à l'occasion du refactoring Vauban de 2017.
-     * @return La liste des messages d'anomalie.
-     */
-    protected static List<String> buildAnomalies(String anomalie, boolean anomalieFormatVauban) {
-        List<String> anomalies = new ArrayList<>();
-        String[] anomalieLines = anomalie.split("\n");
-        for (int i = 0; i < anomalieLines.length; i++) {
-            StringBuilder oneLine = new StringBuilder();
-					/*
-						En fonction du fait que l'anomalie ait été produite par du code post refactoring Vauban de 2017 ou
-						du code antérieur, il faut déterminer le libellé qui sera rapporté.
+    private boolean validateQuarter(String onssTrimestreProperty) {
 
-						Pour une version du code antérieure au refactoring Vauban, il n'y a à priori qu'une erreur par ligne
-						de la table ONSSANOMALIE, mais le libellé de l'erreur peut tenir en plusieurs lignes. Il faut dans ce cas
-						lire toutes les lignes consécutives en de la même erreur en une fois et supprimer les retours à la ligne.
-					 */
-            String currentLibelle = anomalieLines[i].trim();
-
-            if (anomalieFormatVauban) {
-                // Code post refactoring Vauban 2017
-                oneLine.append(currentLibelle);
-            } else {
-                // Code pré refactoring Vauban 2017
-                // Dans ce code on peut retrouver une erreur sur plusieurs lignes
-                oneLine.append(currentLibelle);
-                // Lire toutes les lignes qui font partie de la même erreur pour n'en faire qu'une seule.
-                // Dans les messages sur plusieurs ligne, la deuxième ligne et les lignes suivantes ne sont pas sencées contenir
-                // les mots INFO, WARNING et ERROR ni en majuscule, ni en minuscule...
-                // Donc on boucle tant qu'on ne retrouve pas une telle ligne, puis comme on
-                // a lu une ligne de trop, on revient en arrière d'une ligne (une sorte de "put back").
-                i++;
-                while (i < anomalieLines.length && !anomalieLines[i].toUpperCase().contains(ERROR)
-                        && !anomalieLines[i].toUpperCase().contains(WARNING) && !anomalieLines[i].toUpperCase().contains(INFO)) {
-                    oneLine.append(" " + anomalieLines[i].replace("\r", "").replace("\n", "").trim());
-                    i++;
-                }
-                i--;
-            }
-            anomalies.add(oneLine.toString());
-        }
-        return anomalies;
-    }
-
-    /**
-     * Construit une liste de lignes à écrire dans le fichier temporaire sur base d'un modèle de ligne qui reprend toutes
-     * les informations communes à une liste d'anomalies ayant le même identifiant dans la table OnssAnomalie.
-     * @param line Ensemble des 32 informations de base d'une liste à faire figurer dans le fichier temporaire, et donc
-     *             dans le fichier Excel, à l'exception des messages d'anomalies (line[30]) et du statut d'erreur qui
-     *             découle de ces anomalies (line[29])
-     * @param anomalies liste des messages d'anomalie
-     * @param anomaliesVauban <code>true</code> si les messages sont au format postRefactoring Vauban de 2017, <code>false</code> sinon.
-     * @return
-     */
-    protected static List<String> buildTempFileLinesForAnomaly(String[] line, List<String> anomalies, boolean anomaliesVauban) {
-        List<String> tempFileLines = new ArrayList<>();
-
-        for (String anomaly : anomalies) {
-            String rejCat = INFO;
-            if (anomaliesVauban) {
-				/*
-					Pour une version par du code post refactoring Vauban de 2017, il faut considérer qu'une anomalie codifiée
-					comme WARNING est à catégoriser comme ERROR. Pour éviter qu'on ne voie une catérie ERROR et dans
-					la colonne suivante un libellé commeçant par WARNING, il faut parser l'anomalie pour en extraire la
-					partie libellé.
-				 */
-                String[] parts = anomaly.split("-\\d{3,5}##");
-                String niveauRejet = parts[0];
-                line[30] = parts[1]; // col.26
-                if (WARNING.equals(niveauRejet) || ERROR.equals(niveauRejet)) {
-                    rejCat = ERROR;
-                }
-            } else {
-                line[30] = anomaly;
-                if (anomaly.toUpperCase().indexOf(ERROR) != -1) {
-                    rejCat = ERROR;
-                } else if (anomaly.toUpperCase().indexOf(WARNING) != -1) {
-                    rejCat = WARNING;
-                }
-            }
-            line[29] = rejCat; // col.25
-
-            // Production d'une ligne du fichier
-            tempFileLines.add(String.join("\t", line));
-        }
-        return tempFileLines;
-    }
-
-    private static int createNewWorkBook(HSSFSheet mySheet, String[] headerLine) {
-        // renvoi le nombre de lignes créés dans le header (1 en principe)
-        mySheet.setColumnWidth(2, (short) 3000);
-        mySheet.setColumnWidth(5, (short) 5000);
-        mySheet.setColumnWidth(8, (short) 4000);
-        mySheet.setColumnWidth(10, (short) 3000);
-        mySheet.setColumnWidth(12, (short) 5000);
-        mySheet.setColumnWidth(14, (short) 3000);
-        mySheet.setColumnWidth(18, (short) 10000);
-        mySheet.setColumnWidth(19, (short) 3000);
-        mySheet.setColumnWidth(20, (short) 30000);
-        int rowNum = 0;
-        HSSFRow myRow = mySheet.createRow(rowNum++);
-        int cellNum = 0;
-        HSSFCell myCell = myRow.createCell(cellNum++);
-        myCell.setCellValue(headerLine[0]);
-        myCell = myRow.createCell(cellNum++);
-        myCell.setCellValue(headerLine[1]);
-        myCell = myRow.createCell(cellNum++);
-        myCell.setCellValue(headerLine[2]);
-        myCell = myRow.createCell(cellNum++);
-        myCell.setCellValue(headerLine[3]);
-        myCell = myRow.createCell(cellNum++);
-        myCell.setCellValue(headerLine[4]);
-        myCell = myRow.createCell(cellNum++);
-        myCell.setCellValue(headerLine[5]);
-        myCell = myRow.createCell(cellNum++);
-        myCell.setCellValue(headerLine[6]);
-        myCell = myRow.createCell(cellNum++);
-        myCell.setCellValue(headerLine[7]);
-        myCell = myRow.createCell(cellNum++);
-        myCell.setCellValue(headerLine[8]);
-        myCell = myRow.createCell(cellNum++);
-        myCell.setCellValue(headerLine[9]);
-        myCell = myRow.createCell(cellNum++);
-        myCell.setCellValue(headerLine[10]);
-        myCell = myRow.createCell(cellNum++);
-        myCell.setCellValue(headerLine[11]);
-        myCell = myRow.createCell(cellNum++);
-        myCell.setCellValue(headerLine[12]);
-        myCell = myRow.createCell(cellNum++);
-        myCell.setCellValue(headerLine[13]);
-        myCell = myRow.createCell(cellNum++);
-        myCell.setCellValue(headerLine[14]);
-        myCell = myRow.createCell(cellNum++);
-        myCell.setCellValue(headerLine[15]);
-        myCell = myRow.createCell(cellNum++);
-        myCell.setCellValue(headerLine[17]);
-        myCell = myRow.createCell(cellNum++);
-        myCell.setCellValue(headerLine[18]);
-        myCell = myRow.createCell(cellNum++);
-        myCell.setCellValue(headerLine[23]);
-        myCell = myRow.createCell(cellNum++);
-        myCell.setCellValue(headerLine[24]);
-        myCell = myRow.createCell(cellNum++);
-        myCell.setCellValue(headerLine[25]);
-        myCell = myRow.createCell(cellNum++);
-        myCell.setCellValue(headerLine[26]);
-        return rowNum;
-    }
-
-    private static int createRow(HSSFSheet mySheet, int rowNum, String[] line) {
-        HSSFRow myRow = mySheet.createRow(rowNum++);
-        int cellNum = 0;
-        HSSFCell myCell = myRow.createCell(cellNum++);
-        myCell.setCellValue(line[0]);
-
-        myCell = myRow.createCell(cellNum++);
-        myCell.setCellValue(line[1]);
-
-        myCell = myRow.createCell(cellNum++);
-        myCell.setCellValue(line[2]);
-
-        myCell = myRow.createCell(cellNum++);
-        myCell.setCellValue(line[3]);
-
-        myCell = myRow.createCell(cellNum++);
-        myCell.setCellValue(line[4]);
-
-        myCell = myRow.createCell(cellNum++);
-        myCell.setCellValue(line[5]);
-
-        myCell = myRow.createCell(cellNum++);
-        myCell.setCellValue(Long.valueOf(line[6]).longValue());
-
-        myCell = myRow.createCell(cellNum++);
-        myCell.setCellValue(line[7]);
-
-        myCell = myRow.createCell(cellNum++);
-        myCell.setCellValue(line[8]);
-
-        myCell = myRow.createCell(cellNum++);
-        myCell.setCellValue(line[14]);
-
-        myCell = myRow.createCell(cellNum++);
-        myCell.setCellValue(line[15]);
-
-        myCell = myRow.createCell(cellNum++);
-        myCell.setCellValue(line[16]);
-
-        myCell = myRow.createCell(cellNum++);
-        myCell.setCellValue(line[17]);
-
-        myCell = myRow.createCell(cellNum++);
-        myCell.setCellValue(line[18]);
-
-        myCell = myRow.createCell(cellNum++);
-        myCell.setCellValue(line[19]);
-
-        myCell = myRow.createCell(cellNum++);
-        myCell.setCellValue(line[20]);
-
-        myCell = myRow.createCell(cellNum++);
-        myCell.setCellValue(line[22]);
-
-        myCell = myRow.createCell(cellNum++);
-        myCell.setCellValue(line[23]);
-
-        myCell = myRow.createCell(cellNum++);
-        myCell.setCellValue(line[28]);
-
-        myCell = myRow.createCell(cellNum++);
-        myCell.setCellValue(line[29]);
-
-        myCell = myRow.createCell(cellNum++);
-        myCell.setCellValue(line[30]);
-
-        myCell = myRow.createCell(cellNum++);
-        myCell.setCellValue(line[31]);
-
-        return rowNum;
-    }
-
-    private static HSSFWorkbook createNextRow(String fullPathFileName, StringBuilder sMyWorkBookNum, // argument
-                                              // myWorkBookNum++
-                                              // !!!
-                                              List<String> vFilenames, HSSFWorkbook myWorkBook, String[] headerLine, StringBuilder sRowNum, String[] line) {
-
-        int rowNum = Integer.valueOf(sRowNum.toString());
-
-        HSSFSheet mySheet;
-
-        if (myWorkBook == null || rowNum > MAXROW) {
-
-            if (myWorkBook != null) {
-                try {
-                    int myWorkBookNum = Integer.valueOf(sMyWorkBookNum.toString());
-                    String fullPathFilename = fullPathFileName + "_" + (myWorkBookNum++) + ".xls";
-                    sMyWorkBookNum.setLength(0);
-                    sMyWorkBookNum.append(myWorkBookNum);
-                    FileOutputStream outWorkBook = new FileOutputStream(fullPathFilename);
-                    myWorkBook.write(outWorkBook);
-                    outWorkBook.close();
-                    vFilenames.add(fullPathFilename);
-                } catch (IOException i) {
-                    LOGGER.error(i.getMessage(), i);
-                }
-            }
-
-            myWorkBook = new HSSFWorkbook();
-            mySheet = myWorkBook.createSheet();
-            rowNum = createNewWorkBook(mySheet, headerLine);
+        try {
+            Integer.valueOf(onssTrimestreProperty);
+        } catch (Exception e) {
+            LOGGER.error("*** FATAL ERROR invalid value '" + onssTrimestreProperty + "' for arg 'ONSSTRIMESTRE'.");
+            return false;
         }
 
-        mySheet = myWorkBook.getSheetAt(0);
-        rowNum = createRow(mySheet, rowNum, line);
+        int yyyy0q = Integer.valueOf(onssTrimestreProperty);
 
-        sRowNum.setLength(0);
-        sRowNum.append(rowNum);
-        return myWorkBook;
+        if (trimestreYear(yyyy0q) < 2000 || (trimestreYear(yyyy0q)) > 2099 || trimestreQuarter(yyyy0q) < 1 || (trimestreQuarter(yyyy0q)) > 4) {
+            LOGGER.error("*** FATAL ERROR invalid value '" + onssTrimestreProperty + "' for arg 'ONSSTRIMESTRE'.");
+            return false;
+        }
 
+        return true;
+    }
+
+    private int trimestreQuarter(int yyyy0q) {
+        return yyyy0q % 100;
+    }
+
+    private int trimestreYear(int yyyy0q) {
+        return yyyy0q / 100;
     }
 
 }
