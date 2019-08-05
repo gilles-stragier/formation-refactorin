@@ -362,16 +362,11 @@ public class ExcellAnomalie {
             return;
         }
 
-        short quarter = (short) (((trimestreYear(getOnsstrimestreProperty(properties))) * 10) + (trimestreQuarter(getOnsstrimestreProperty(properties))));
+        Trimestre trimestre = new Trimestre(properties.getProperty("ONSSTRIMESTRE"));
 
-
-        String repertoire = "";
         String mail_prefix_adress = "nobody"; // si un problème subsiste ...
         String mail_adress = properties.getProperty("mail.adress");
-        repertoire = properties.getProperty("repertoire.rejet.dmf");
-        if (!repertoire.substring(repertoire.length() - 1, repertoire.length()).equals("/")) {
-            repertoire = repertoire + "/";
-        }
+
         int ndx = -1;
         if (mail_adress != null) {
             ndx = mail_adress.indexOf("@");
@@ -380,8 +375,6 @@ public class ExcellAnomalie {
             mail_prefix_adress = mail_adress.substring(0, ndx);
         }
 
-        String yearOfQuarter = Integer.valueOf(quarter / 10).toString();
-        String quarterOfYear = Integer.valueOf(quarter - (quarter / 10) * 10).toString();
 
         Calendar now = Calendar.getInstance();
         String yyyy = Integer.valueOf(now.get(Calendar.YEAR)).toString();
@@ -406,20 +399,19 @@ public class ExcellAnomalie {
             ss = "0" + ss;
         }
 
-        String fileName = mail_prefix_adress + "_DMF_detail_" + yearOfQuarter + "T" + quarterOfYear + "_" + (("true".equals(properties.getProperty("ISORIGINAL").toLowerCase())) ? "O" : "R") + "_" + yyyy + mm + dd
+        String fileName = mail_prefix_adress + "_DMF_detail_" + trimestre.getAnnee() + "T" + trimestre.getNumero() + "_" + (("true".equals(properties.getProperty("ISORIGINAL").toLowerCase())) ? "O" : "R") + "_" + yyyy + mm + dd
                 + hh + mi + ss;
 
         /* Construction du chemin d'accès au fichier EXCEL (celui du reporting) */
         /* Construction du nom complet du fichier EXCEL sans l'extension '.xls' */
-        String fullPathFileName = repertoire + fileName;
+        String fullPathFileName = new File(properties.getProperty("repertoire.rejet.dmf"), fileName).getAbsolutePath();
 
-
-        buildExcel(fullPathFileName, quarter, ("true".equals(properties.getProperty("ISORIGINAL").toLowerCase())));
+        buildExcel(fullPathFileName, trimestre.asYYYYNNShort(), ("true".equals(properties.getProperty("ISORIGINAL").toLowerCase())));
 
         for (String name : this.filenames) {
             try {
                 String n = new File(name).getName();
-                new File(repertoire + n.substring(0, n.length() - 4) + ".GO").createNewFile();
+                new File(properties.getProperty("repertoire.rejet.dmf"), n.substring(0, n.length() - 4) + ".GO").createNewFile();
             } catch (IOException e) {
                 throw new Exercice1Exception(e.getMessage(), e);
             }
