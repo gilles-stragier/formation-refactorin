@@ -80,14 +80,13 @@ public class ExcellAnomalie {
      * OnssAnomalie. Un message de la liste résultat tient en une seule ligne.
      *
      * @param anomalie             contenu d'une cellule de la table OnssAnomalie
-     * @param anomalieFormatVauban <code>true</code> si l'anomalie passée en premier argument est encodée dans le format
-     *                             mis en application à l'occasion du refactoring Vauban de 2017.
      * @return La liste des messages d'anomalie.
      */
     protected static List<String> buildAnomalies(String anomalie) {
 
         List<String> anomalies = new ArrayList<>();
         String[] anomalieLines = anomalie.split("\n");
+
         for (int i = 0; i < anomalieLines.length; i++) {
             StringBuilder oneLine = new StringBuilder();
 					/*
@@ -474,7 +473,8 @@ public class ExcellAnomalie {
 
                 // Génération du contenu des lignes du fichier intermédiaire correspondant à la ligne du ResultSet
                 // et écriture de ces lignes dans le fichier.
-                List<String> tempFileLines = buildTempFileLinesForAnomaly(line, buildAnomalies(rs.getString(20)), anomalyRecord.getAnomaly().matches(ANOMALIES_PATTERN));
+                List<String> tempFileLines = buildTempFileLinesForAnomaly(line, buildAnomalies(anomalyRecord.getAnomaly()), anomalyRecord.getAnomaly().matches(ANOMALIES_PATTERN));
+
                 for (String tempFileLine : tempFileLines) {
                     out.println(tempFileLine);
                 }
@@ -508,12 +508,8 @@ public class ExcellAnomalie {
         HSSFSheet mySheet;
         int rowNum = 0;
 
-        try {
-            String savedIdNotiEmp = "";
-            String savedIdNotiTrav = "";
-            String savedIdNotiCtr = "";
+        try (BufferedReader in = new BufferedReader(new FileReader(temp))) {
 
-            BufferedReader in = new BufferedReader(new FileReader(temp));
             String inLine;
 
             while ((inLine = in.readLine()) != null) {
@@ -522,317 +518,11 @@ public class ExcellAnomalie {
                     continue;
                 }
 
-                /*
-                 * ICI TEST pour forcer le nombre de lignes SQL au delà de MAXROW for (int x = 0; x < 13; x++) {
-                 * LOGGER("x:"+x);
-                 */
-
                 if (line[14] != null && line[14].trim().length() != 0) {
-                    Statement stmt3 = null;
-                    ResultSet rs3 = null;
-                    try {
-                        String sql3 = "select v3.valeurtext from valeur v3 " + "where v3.entite = 'SUCCU' and " + "v3.parametre = 'NOMSUCCU' and "
-                                // Le code original dont est dérivé cet exercice est buggé car on recherche la succu de l'employeur sur base de line[9] qui est un statut et non line[14] qui est l'emplyeur
-                                + "v3.identifiant = (select f_get_succuid_for_employer(sysdate, '1', '" + line[14] + "') from dual) and "
-                                + "v3.debutvalidite <= to_date('" + nossEndingDate + "', 'yyyymmdd') and " + "v3.finvalidite >= to_date('" + nossEndingDate
-                                + "', 'yyyymmdd') ";
-                        stmt3 = Connexion.getConnection().createStatement();
-                        rs3 = stmt3.executeQuery(sql3);
-                        if (rs3.next()) {
-                            line[2] = rs3.getString(1);
-                        }
-                    } catch (SQLException | Exercice1Exception s) {
-                        LOGGER.error(s.getMessage(), s);
-                    } finally {
-                        if (rs3 != null) {
-                            try {
-                                rs3.close();
-                            } catch (SQLException s) {
-                                LOGGER.error(s.getMessage(), s);
-                            }
-                        }
-                        if (stmt3 != null) {
-                            try {
-                                stmt3.close();
-                            } catch (SQLException s) {
-                                LOGGER.error(s.getMessage(), s);
-                            }
-                        }
-                    }
+                    line[2] = fetchSuccu(nossEndingDate, line[14]);
                 }
 
-                /* Traduction des statuts du lot ou de la société */
-                String olStat = line[8];
-                String olStatActu = line[9];
-                String olcStat = line[10];
-                String olcStatActu = line[11];
-
-                String statut = null;
-                if (line[14] != null && line[14].trim().length() != 0) {
-                    // ligne société, travailleur ou contrat
-                    if ("O".equals(line[7])) { // lot orig.
-                        if ("05".equals(olcStat)) {
-                            // Implique que la société est à (re)générer
-                            statut = "à corriger";
-                        } else {
-
-                            if ("01".equals(olStat)) {
-                                // Implique que la société est à (re)générer
-                                statut = "à générer";
-                            } else if ("04".equals(olStat)) {
-                                // Impliqu'une des sociétés du lot est en cours de génération,
-                                // donc au pire la société est à regénérer
-                                statut = "en cours";
-                            } else if ("03".equals(olStat)) {
-                                // Impliqu'une ou plusieurs des sociétés du lot sont en erreur
-                                if ("03".equals(olcStat)) { // société en erreur ...
-                                    statut = "rejet";
-                                } else if ("02".equals(olcStat)) {
-                                    statut = "généré";
-                                } else { // ... sinon à regénérer
-                                    statut = "à générer";
-                                }
-                            } else if ("02".equals(olStat)) {
-                                // Implique toutes sociétés du lot sont générées
-                                statut = "généré";
-                            } else if ("09".equals(olStat)) {
-                                statut = "envoi en cours";
-                            } else if ("08".equals(olStat)) {
-                                statut = "envoi en erreur";
-                            } else if ("10".equals(olStat)) {
-                                statut = "envoyé";
-                            } else if ("21".equals(olStat)) {
-                                statut = "accusé négatif";
-                            } else if (",20,31,30,".indexOf("," + olStat + ",") != -1) {
-                                // une ou plusieurs sociétés du lot ont été soit ...
-                                if ("30".equals(olcStat)) {
-                                    statut = "notification positive ";
-                                } else if ("31".equals(olcStat)) {
-                                    statut = "notification négative";
-                                } else if ("40".equals(olcStat)) {
-                                    statut = "révoqué";
-                                } else {
-                                    statut = "accusé positif"; // pas de noti reçue
-                                }
-                                // Ce qui suit écrase la valeur précèdente de 'rejCat'
-                                // qui ne peut qu'être moins relevante
-                                if ("40".equals(olcStat)) {
-                                    line[29] = ERROR;
-                                } else {
-                                    if (",60,61,62,".contains("," + line[12].trim() + ",")) {
-                                        line[29] = "ANOMALY";
-                                    }
-                                }
-                            } else {
-                                statut = "?"; // cas imprévu !
-                            }
-                        }
-                        if (line[12] != null && line[12].trim().length() != 0) {
-                            statut += " (" + line[8] + "/" + line[10] + "/" + line[12] + ")";
-                        } else {
-                            statut += " (" + line[8] + "/" + line[10] + ")";
-                        }
-                    } else { // lot rectif.
-                        if ("00".equals(olStat)) {
-                            statut = "consultation "; // phase 1 : consultation de la déclaration actuelle chez l'ONSS
-                            if ("101".equals(olcStatActu)) {
-                                statut += "à faire";
-                            } else if ("103".equals(olcStatActu)) {
-                                statut += "- envoi en cours";
-                            } else if ("105".equals(olcStatActu)) {
-                                statut += "- envoi en erreur";
-                            } else if ("109".equals(olcStatActu)) {
-                                statut += "envoyée";
-                            } else if ("123".equals(olcStatActu)) {
-                                statut += "- réception en cours";
-                            } else if ("125".equals(olcStatActu)) {
-                                statut += "- réception en erreur";
-                            } else if (",127,128,129,".indexOf("," + olcStatActu + ",") != -1) {
-                                statut += "reçue";
-                            } else {
-                                statut = "?"; // autres cas
-                            }
-                        } else if (",101,104,103,102,".indexOf(olStat) != -1) {
-                            statut = "actualisation "; // phase 2 : générer la déclaration actuelle chez ForHRM (même
-                            // forme que l'original)
-                            if ("101".equals(olcStat)) {
-                                statut += "à faire";
-                            } else if ("104".equals(olcStat)) {
-                                statut += "en cours";
-                            } else if ("103".equals(olcStat)) {
-                                statut += "en erreur";
-                            } else if ("102".equals(olcStat)) {
-                                statut += "faite";
-                            } else {
-                                statut = "?"; // autres cas
-                            }
-                        } else if ("01,04,03,02,".contains(olStat)) {
-                            statut = "génération "; // phase 3 : comparer la déclaration de ForHRM avec celle de l'ONSS
-                            // pour générer la déclaration
-                            // rectificative à envoyer
-                            if ("01".equals(olcStat)) {
-                                statut += "à faire";
-                            } else if ("04".equals(olcStat)) {
-                                statut += "en cours";
-                            } else if ("03".equals(olcStat)) {
-                                statut += "en erreur";
-                            } else if ("02".equals(olcStat)) {
-                                if ("200".equals(olcStatActu)) {
-                                    statut += "complète faite";
-                                } else if ("201".equals(olcStatActu)) {
-                                    statut += "partielle faite";
-                                } else if ("209".equals(olcStatActu)) {
-                                    statut += "- rien à rectifier";
-                                } else if ("210".equals(olcStatActu)) {
-                                    statut += "- complète CNL uniquement";
-                                } else {
-                                    statut = "?"; // cas imprévu !
-                                }
-
-                            } else {
-                                statut = "?"; // autres cas
-                            }
-                        }
-                        // phase 4 : envoi
-                        else if ("09".equals(olStat)) {
-                            statut = "envoi en cours";
-                        } else if ("08".equals(olStat)) {
-                            statut = "envoi en erreur";
-                        } else if ("10".equals(olStat)) {
-                            statut = "envoyé";
-                        } else if ("21".equals(olStat)) {
-                            statut = "accusé négatif";
-                        } else if (",20,33,32,31,30,".contains("," + olStat + ",")) {
-                            // une ou plusieurs sociétés du lot ont été soit ...
-                            if ("33".equals(olcStat)) {
-                                statut = "notification partielle négative";
-                            } else if ("32".equals(olcStat)) {
-                                statut = "notication partielle positive";
-                            } else if ("31".equals(olcStat)) {
-                                statut = "notication négative";
-                            } else if ("30".equals(olcStat)) {
-                                statut = "notication positive";
-                            } else if ("40".equals(olcStat)) {
-                                statut = "révoqué";
-                            } else {
-                                statut = "accusé positive";
-                            }
-                            // Ce qui suit écrase la valeur précèdente de 'rejCat'
-                            // qui ne peut qu'être moins relevante
-                            if ("40".equals(olcStat)) {
-                                line[29] = ERROR;
-                            } else if (",160,161,162,".indexOf("," + line[12].trim() + ",") != -1) {
-                                line[29] = "ANOMALY"; // écrase la valeur précèdente qui ne peut être moins relevante
-                            }
-                        } else {
-                            statut = "?"; // cas imprévu !
-                        }
-                        if ((line[12] != null && line[12].trim().length() != 0) || (line[13] != null && line[13].trim().length() != 0)) {
-                            statut += " (" + line[8] + "," + line[9] + "/" + line[10] + "," + line[11] + ")";
-                        } else {
-                            statut += " (" + line[8] + "," + line[9] + "/" + line[10] + "," + line[11] + "/" + line[12] + "," + line[13] + ")";
-                        }
-                    }
-                } else if (line[6] != null && line[6].trim().length() != 0) {
-                    // ligne lot ou indice
-                    if ("O".equals(line[7])) { // lot orig.
-                        if ("01".equals(olStat)) {
-                            // Implique que toutes les sociétés sont à (re)générer
-                            statut = "à générer";
-                        } else if ("04".equals(olStat)) {
-                            // Impliqu'une des sociétés du lot est en cours de génération
-                            statut = "génération en cours";
-                        } else if ("03".equals(olStat)) {
-                            // Impliqu'une ou plusieurs des sociétés du lot sont en erreur
-                            statut = "rejet";
-                        } else if ("02".equals(olStat)) {
-                            // Implique toutes sociétés du lot sont générées
-                            statut = "généré";
-                        } else if ("09".equals(olStat)) {
-                            statut = "envoi en cours";
-                        } else if ("08".equals(olStat)) {
-                            statut = "envoi en erreur";
-                        } else if ("10".equals(olStat)) {
-                            statut = "envoyé";
-                        } else if ("21".equals(olStat)) {
-                            statut = "accusé -";
-                        } else if ("20".equals(olStat)) {
-                            // Implique que des notifications de société du lot sont attendues mais pas toutes reçues
-                            statut = "accusé +";
-                        } else if ("31".equals(olStat)) {
-                            // Implique que les notifications des sociétés du lot sont toutes reçues dont quelques unes
-                            // sont négatives
-                            statut = "sociétés à révoquer";
-                        } else if ("30".equals(olStat)) {
-                            // Implique que les notifications des sociétés du lot sont toutes reçues dont les négatives
-                            // sont révoquées
-                            statut = "terminé";
-                        } else {
-                            statut = "?"; // cas imprévu !
-                        }
-                        statut += " (" + line[8] + ")";
-                    } else { // lot rectif.
-                        // phase 1 : consultation de la déclaration actuelle chez l'ONSS
-                        if ("00".equals(olStat)) {
-                            statut = "consultation ";
-                        }
-                        // phase 2 : générer la déclaration actuelle chez ForHRM (même forme que l'original)
-                        else if ("101".equals(olStat)) {
-                            statut = "actualisation à faire";
-                        } else if ("104".equals(olStat)) {
-                            statut = "actualisation en cours";
-                        } else if ("103".equals(olStat)) {
-                            statut = "actualisation en erreur";
-                        } else if ("102".equals(olStat)) {
-                            statut = "actualisation faite";
-                        }
-                        // phase 3 : comparer la déclaration de ForHRM avec celle de l'ONSS pour générer la déclaration
-                        // rectificative à envoyer
-                        else if ("01".equals(olStat)) {
-                            statut = "génération à faire";
-                        } else if ("04".equals(olStat)) {
-                            statut = "génération en cours";
-                        } else if ("03".equals(olStat)) {
-                            statut = "génération en erreur";
-                        } else if ("02".equals(olStat)) {
-                            if ("200".equals(olStatActu)) {
-                                statut = "génération complète faite";
-                            } else if ("201".equals(olStatActu)) {
-                                statut = "génération partielle faite";
-                            } else if ("209".equals(olStatActu)) {
-                                statut = "rien à rectifier";
-                            } else if ("210".equals(olcStatActu)) {
-                                statut += "- complète CNL uniquement";
-                            } else {
-                                statut = "?"; // cas imprévu !
-                            }
-                        }
-                        // phase 4 : envoi
-                        else if ("09".equals(olStat)) {
-                            statut = "envoi en cours";
-                        } else if ("08".equals(olStat)) {
-                            statut = "envoi en erreur";
-                        } else if ("10".equals(olStat)) {
-                            statut = "envoyé";
-                        } else if ("21".equals(olStat)) {
-                            statut = "accusé négatif";
-                        } else if ("20".equals(olStat)) {
-                            statut = "accusé positif";
-                        } else if ("33".equals(olStat)) {
-                            statut = "notification partielle négative";
-                        } else if ("32".equals(olStat)) {
-                            statut = "notication partielle positive";
-                        } else if ("31".equals(olStat)) {
-                            statut = "notication négative";
-                        } else if ("30".equals(olStat)) {
-                            statut = "notication positive";
-                        } else {
-                            statut = "?"; // cas imprévu !
-                        }
-                        statut += " (" + line[8] + "," + line[9] + ")";
-                    }
-                }
-                line[8] = statut; // contient finalement tous les statuts du context
+                line[8] = computeStatut(line); // contient finalement tous les statuts du context
 
                 if (!line[29].equals("ANOMALY")) {
                     if (line[14] != null && line[14].trim().length() != 0) {
@@ -882,9 +572,8 @@ public class ExcellAnomalie {
                 createNewWorkBook(mySheet, headerLine);
             }
 
-            in.close();
 
-        } catch (Exception e) {
+        } catch (IOException e) {
             LOGGER.error(e.getMessage(), e);
         }
 
@@ -902,6 +591,316 @@ public class ExcellAnomalie {
             LOGGER.error(i.getMessage(), i);
         }
 
+    }
+
+    private String computeStatut(String[] line) {
+        /* Traduction des statuts du lot ou de la société */
+        String olStat = line[8];
+        String olStatActu = line[9];
+        String olcStat = line[10];
+        String olcStatActu = line[11];
+
+        String statut = null;
+
+        if (line[14] != null && line[14].trim().length() != 0) {
+            // ligne société, travailleur ou contrat
+            if ("O".equals(line[7])) { // lot orig.
+                if ("05".equals(olcStat)) {
+                    // Implique que la société est à (re)générer
+                    statut = "à corriger";
+                } else {
+
+                    if ("01".equals(olStat)) {
+                        // Implique que la société est à (re)générer
+                        statut = "à générer";
+                    } else if ("04".equals(olStat)) {
+                        // Impliqu'une des sociétés du lot est en cours de génération,
+                        // donc au pire la société est à regénérer
+                        statut = "en cours";
+                    } else if ("03".equals(olStat)) {
+                        // Impliqu'une ou plusieurs des sociétés du lot sont en erreur
+                        if ("03".equals(olcStat)) { // société en erreur ...
+                            statut = "rejet";
+                        } else if ("02".equals(olcStat)) {
+                            statut = "généré";
+                        } else { // ... sinon à regénérer
+                            statut = "à générer";
+                        }
+                    } else if ("02".equals(olStat)) {
+                        // Implique toutes sociétés du lot sont générées
+                        statut = "généré";
+                    } else if ("09".equals(olStat)) {
+                        statut = "envoi en cours";
+                    } else if ("08".equals(olStat)) {
+                        statut = "envoi en erreur";
+                    } else if ("10".equals(olStat)) {
+                        statut = "envoyé";
+                    } else if ("21".equals(olStat)) {
+                        statut = "accusé négatif";
+                    } else if (",20,31,30,".indexOf("," + olStat + ",") != -1) {
+                        // une ou plusieurs sociétés du lot ont été soit ...
+                        if ("30".equals(olcStat)) {
+                            statut = "notification positive ";
+                        } else if ("31".equals(olcStat)) {
+                            statut = "notification négative";
+                        } else if ("40".equals(olcStat)) {
+                            statut = "révoqué";
+                        } else {
+                            statut = "accusé positif"; // pas de noti reçue
+                        }
+                        // Ce qui suit écrase la valeur précèdente de 'rejCat'
+                        // qui ne peut qu'être moins relevante
+                        if ("40".equals(olcStat)) {
+                            line[29] = ERROR;
+                        } else {
+                            if (",60,61,62,".contains("," + line[12].trim() + ",")) {
+                                line[29] = "ANOMALY";
+                            }
+                        }
+                    } else {
+                        statut = "?"; // cas imprévu !
+                    }
+                }
+                if (line[12] != null && line[12].trim().length() != 0) {
+                    statut += " (" + line[8] + "/" + line[10] + "/" + line[12] + ")";
+                } else {
+                    statut += " (" + line[8] + "/" + line[10] + ")";
+                }
+            } else { // lot rectif.
+                if ("00".equals(olStat)) {
+                    statut = "consultation "; // phase 1 : consultation de la déclaration actuelle chez l'ONSS
+                    if ("101".equals(olcStatActu)) {
+                        statut += "à faire";
+                    } else if ("103".equals(olcStatActu)) {
+                        statut += "- envoi en cours";
+                    } else if ("105".equals(olcStatActu)) {
+                        statut += "- envoi en erreur";
+                    } else if ("109".equals(olcStatActu)) {
+                        statut += "envoyée";
+                    } else if ("123".equals(olcStatActu)) {
+                        statut += "- réception en cours";
+                    } else if ("125".equals(olcStatActu)) {
+                        statut += "- réception en erreur";
+                    } else if (",127,128,129,".indexOf("," + olcStatActu + ",") != -1) {
+                        statut += "reçue";
+                    } else {
+                        statut = "?"; // autres cas
+                    }
+                } else if (",101,104,103,102,".indexOf(olStat) != -1) {
+                    statut = "actualisation "; // phase 2 : générer la déclaration actuelle chez ForHRM (même
+                    // forme que l'original)
+                    if ("101".equals(olcStat)) {
+                        statut += "à faire";
+                    } else if ("104".equals(olcStat)) {
+                        statut += "en cours";
+                    } else if ("103".equals(olcStat)) {
+                        statut += "en erreur";
+                    } else if ("102".equals(olcStat)) {
+                        statut += "faite";
+                    } else {
+                        statut = "?"; // autres cas
+                    }
+                } else if ("01,04,03,02,".contains(olStat)) {
+                    statut = "génération "; // phase 3 : comparer la déclaration de ForHRM avec celle de l'ONSS
+                    // pour générer la déclaration
+                    // rectificative à envoyer
+                    if ("01".equals(olcStat)) {
+                        statut += "à faire";
+                    } else if ("04".equals(olcStat)) {
+                        statut += "en cours";
+                    } else if ("03".equals(olcStat)) {
+                        statut += "en erreur";
+                    } else if ("02".equals(olcStat)) {
+                        if ("200".equals(olcStatActu)) {
+                            statut += "complète faite";
+                        } else if ("201".equals(olcStatActu)) {
+                            statut += "partielle faite";
+                        } else if ("209".equals(olcStatActu)) {
+                            statut += "- rien à rectifier";
+                        } else if ("210".equals(olcStatActu)) {
+                            statut += "- complète CNL uniquement";
+                        } else {
+                            statut = "?"; // cas imprévu !
+                        }
+
+                    } else {
+                        statut = "?"; // autres cas
+                    }
+                }
+                // phase 4 : envoi
+                else if ("09".equals(olStat)) {
+                    statut = "envoi en cours";
+                } else if ("08".equals(olStat)) {
+                    statut = "envoi en erreur";
+                } else if ("10".equals(olStat)) {
+                    statut = "envoyé";
+                } else if ("21".equals(olStat)) {
+                    statut = "accusé négatif";
+                } else if (",20,33,32,31,30,".contains("," + olStat + ",")) {
+                    // une ou plusieurs sociétés du lot ont été soit ...
+                    if ("33".equals(olcStat)) {
+                        statut = "notification partielle négative";
+                    } else if ("32".equals(olcStat)) {
+                        statut = "notication partielle positive";
+                    } else if ("31".equals(olcStat)) {
+                        statut = "notication négative";
+                    } else if ("30".equals(olcStat)) {
+                        statut = "notication positive";
+                    } else if ("40".equals(olcStat)) {
+                        statut = "révoqué";
+                    } else {
+                        statut = "accusé positive";
+                    }
+                    // Ce qui suit écrase la valeur précèdente de 'rejCat'
+                    // qui ne peut qu'être moins relevante
+                    if ("40".equals(olcStat)) {
+                        line[29] = ERROR;
+                    } else if (",160,161,162,".indexOf("," + line[12].trim() + ",") != -1) {
+                        line[29] = "ANOMALY"; // écrase la valeur précèdente qui ne peut être moins relevante
+                    }
+                } else {
+                    statut = "?"; // cas imprévu !
+                }
+                if ((line[12] != null && line[12].trim().length() != 0) || (line[13] != null && line[13].trim().length() != 0)) {
+                    statut += " (" + line[8] + "," + line[9] + "/" + line[10] + "," + line[11] + ")";
+                } else {
+                    statut += " (" + line[8] + "," + line[9] + "/" + line[10] + "," + line[11] + "/" + line[12] + "," + line[13] + ")";
+                }
+            }
+        } else if (line[6] != null && line[6].trim().length() != 0) {
+            // ligne lot ou indice
+            if ("O".equals(line[7])) { // lot orig.
+                if ("01".equals(olStat)) {
+                    // Implique que toutes les sociétés sont à (re)générer
+                    statut = "à générer";
+                } else if ("04".equals(olStat)) {
+                    // Impliqu'une des sociétés du lot est en cours de génération
+                    statut = "génération en cours";
+                } else if ("03".equals(olStat)) {
+                    // Impliqu'une ou plusieurs des sociétés du lot sont en erreur
+                    statut = "rejet";
+                } else if ("02".equals(olStat)) {
+                    // Implique toutes sociétés du lot sont générées
+                    statut = "généré";
+                } else if ("09".equals(olStat)) {
+                    statut = "envoi en cours";
+                } else if ("08".equals(olStat)) {
+                    statut = "envoi en erreur";
+                } else if ("10".equals(olStat)) {
+                    statut = "envoyé";
+                } else if ("21".equals(olStat)) {
+                    statut = "accusé -";
+                } else if ("20".equals(olStat)) {
+                    // Implique que des notifications de société du lot sont attendues mais pas toutes reçues
+                    statut = "accusé +";
+                } else if ("31".equals(olStat)) {
+                    // Implique que les notifications des sociétés du lot sont toutes reçues dont quelques unes
+                    // sont négatives
+                    statut = "sociétés à révoquer";
+                } else if ("30".equals(olStat)) {
+                    // Implique que les notifications des sociétés du lot sont toutes reçues dont les négatives
+                    // sont révoquées
+                    statut = "terminé";
+                } else {
+                    statut = "?"; // cas imprévu !
+                }
+                statut += " (" + line[8] + ")";
+            } else { // lot rectif.
+                // phase 1 : consultation de la déclaration actuelle chez l'ONSS
+                if ("00".equals(olStat)) {
+                    statut = "consultation ";
+                }
+                // phase 2 : générer la déclaration actuelle chez ForHRM (même forme que l'original)
+                else if ("101".equals(olStat)) {
+                    statut = "actualisation à faire";
+                } else if ("104".equals(olStat)) {
+                    statut = "actualisation en cours";
+                } else if ("103".equals(olStat)) {
+                    statut = "actualisation en erreur";
+                } else if ("102".equals(olStat)) {
+                    statut = "actualisation faite";
+                }
+                // phase 3 : comparer la déclaration de ForHRM avec celle de l'ONSS pour générer la déclaration
+                // rectificative à envoyer
+                else if ("01".equals(olStat)) {
+                    statut = "génération à faire";
+                } else if ("04".equals(olStat)) {
+                    statut = "génération en cours";
+                } else if ("03".equals(olStat)) {
+                    statut = "génération en erreur";
+                } else if ("02".equals(olStat)) {
+                    if ("200".equals(olStatActu)) {
+                        statut = "génération complète faite";
+                    } else if ("201".equals(olStatActu)) {
+                        statut = "génération partielle faite";
+                    } else if ("209".equals(olStatActu)) {
+                        statut = "rien à rectifier";
+                    } else if ("210".equals(olcStatActu)) {
+                        statut += "- complète CNL uniquement";
+                    } else {
+                        statut = "?"; // cas imprévu !
+                    }
+                }
+                // phase 4 : envoi
+                else if ("09".equals(olStat)) {
+                    statut = "envoi en cours";
+                } else if ("08".equals(olStat)) {
+                    statut = "envoi en erreur";
+                } else if ("10".equals(olStat)) {
+                    statut = "envoyé";
+                } else if ("21".equals(olStat)) {
+                    statut = "accusé négatif";
+                } else if ("20".equals(olStat)) {
+                    statut = "accusé positif";
+                } else if ("33".equals(olStat)) {
+                    statut = "notification partielle négative";
+                } else if ("32".equals(olStat)) {
+                    statut = "notication partielle positive";
+                } else if ("31".equals(olStat)) {
+                    statut = "notication négative";
+                } else if ("30".equals(olStat)) {
+                    statut = "notication positive";
+                } else {
+                    statut = "?"; // cas imprévu !
+                }
+                statut += " (" + line[8] + "," + line[9] + ")";
+            }
+        }
+        return statut;
+    }
+
+    private String fetchSuccu(int nossEndingDate, String empCode) {
+        Statement stmt3 = null;
+        ResultSet rs3 = null;
+        try {
+            String sql3 = "select v3.valeurtext from valeur v3 " + "where v3.entite = 'SUCCU' and " + "v3.parametre = 'NOMSUCCU' and "
+                    + "v3.identifiant = (select f_get_succuid_for_employer(sysdate, '1', '" + empCode + "') from dual) and "
+                    + "v3.debutvalidite <= to_date('" + nossEndingDate + "', 'yyyymmdd') and " + "v3.finvalidite >= to_date('" + nossEndingDate
+                    + "', 'yyyymmdd') ";
+            stmt3 = Connexion.getConnection().createStatement();
+            rs3 = stmt3.executeQuery(sql3);
+            if (rs3.next()) {
+                return rs3.getString(1);
+            }
+        } catch (SQLException | Exercice1Exception s) {
+            LOGGER.error(s.getMessage(), s);
+        } finally {
+            if (rs3 != null) {
+                try {
+                    rs3.close();
+                } catch (SQLException s) {
+                    LOGGER.error(s.getMessage(), s);
+                }
+            }
+            if (stmt3 != null) {
+                try {
+                    stmt3.close();
+                } catch (SQLException s) {
+                    LOGGER.error(s.getMessage(), s);
+                }
+            }
+        }
+        return "";
     }
 
     private String buildQueryForAnomaliesInAQuarter(Trimestre trimestre, boolean isOriginal) {
