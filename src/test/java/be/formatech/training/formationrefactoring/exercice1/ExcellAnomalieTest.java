@@ -3,17 +3,21 @@ package be.formatech.training.formationrefactoring.exercice1;
 import org.apache.poi.hssf.usermodel.HSSFRow;
 import org.apache.poi.hssf.usermodel.HSSFSheet;
 import org.apache.poi.hssf.usermodel.HSSFWorkbook;
+import org.junit.Assert;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.FileInputStream;
+import java.time.LocalDateTime;
+import java.time.Month;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 
+import static java.time.Month.MARCH;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
@@ -35,6 +39,16 @@ public class ExcellAnomalieTest {
     private final static String ANOMALIE_OLD_2_LINE_2 = "SecondMessageLigne2";
     private final static String ANOMALIE_OLD_2 = ANOMALIE_OLD_2_LINE_1 + "\r\n" + ANOMALIE_OLD_2_LINE_2;
     private final static String ANOMALIE_OLD= ANOMALIE_OLD_1 + "\r\n" + ANOMALIE_OLD_2;
+
+
+    @Test
+    public void nowAsString(){
+        LocalDateTime someDate = LocalDateTime.of(2000, MARCH, 1, 13, 3, 4);
+
+        ExcellAnomalie excellAnomalie = new ExcellAnomalie();
+        Assert.assertEquals("20000301130304", excellAnomalie.nowAsYYYYMMDDHHMMSS(someDate));
+
+    }
 
     @Test
     public void validateExcellFile() throws Exception {

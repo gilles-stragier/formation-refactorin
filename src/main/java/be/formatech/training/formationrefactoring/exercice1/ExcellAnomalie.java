@@ -11,6 +11,8 @@ import org.slf4j.LoggerFactory;
 
 import java.io.*;
 import java.sql.SQLException;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.List;
@@ -362,8 +364,6 @@ public class ExcellAnomalie {
             return;
         }
 
-        Trimestre trimestre = new Trimestre(properties.getProperty("ONSSTRIMESTRE"));
-
         String mail_prefix_adress = "nobody"; // si un problème subsiste ...
         String mail_adress = properties.getProperty("mail.adress");
 
@@ -376,31 +376,9 @@ public class ExcellAnomalie {
         }
 
 
-        Calendar now = Calendar.getInstance();
-        String yyyy = Integer.valueOf(now.get(Calendar.YEAR)).toString();
-        String mm = Integer.valueOf(now.get(Calendar.MONTH) + 1).toString();
-        while (mm.length() < 2) {
-            mm = "0" + mm;
-        }
-        String dd = Integer.valueOf(now.get(Calendar.DAY_OF_MONTH)).toString();
-        while (dd.length() < 2) {
-            dd = "0" + dd;
-        }
-        String hh = Integer.valueOf(now.get(Calendar.HOUR_OF_DAY)).toString();
-        while (hh.length() < 2) {
-            hh = "0" + hh;
-        }
-        String mi = Integer.valueOf(now.get(Calendar.MINUTE)).toString();
-        while (mi.length() < 2) {
-            mi = "0" + mi;
-        }
-        String ss = Integer.valueOf(now.get(Calendar.SECOND)).toString();
-        while (ss.length() < 2) {
-            ss = "0" + ss;
-        }
+        Trimestre trimestre = new Trimestre(properties.getProperty("ONSSTRIMESTRE"));
 
-        String fileName = mail_prefix_adress + "_DMF_detail_" + trimestre.getAnnee() + "T" + trimestre.getNumero() + "_" + (("true".equals(properties.getProperty("ISORIGINAL").toLowerCase())) ? "O" : "R") + "_" + yyyy + mm + dd
-                + hh + mi + ss;
+        String fileName = mail_prefix_adress + "_DMF_detail_" + trimestre.asYYYYTN() + "_" + (("true".equals(properties.getProperty("ISORIGINAL").toLowerCase())) ? "O" : "R") + "_" + nowAsYYYYMMDDHHMMSS(LocalDateTime.now());
 
         /* Construction du chemin d'accès au fichier EXCEL (celui du reporting) */
         /* Construction du nom complet du fichier EXCEL sans l'extension '.xls' */
@@ -418,6 +396,10 @@ public class ExcellAnomalie {
         }
 
 
+    }
+
+    String nowAsYYYYMMDDHHMMSS(LocalDateTime localDateTime) {
+        return localDateTime.format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss"));
     }
 
     private Integer getOnsstrimestreProperty(Properties properties) {

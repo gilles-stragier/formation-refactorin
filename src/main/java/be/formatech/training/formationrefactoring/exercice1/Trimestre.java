@@ -210,6 +210,10 @@ public class Trimestre implements Serializable {
         return String.format("%1$04d%2$02d", annee, numero);
     }
 
+    public String asYYYYTN() {
+        return String.format("%1$04dT%2$01d", annee, numero);
+    }
+
     public Short asYYYYNNShort() {
         return Short.valueOf(asYYYYN());
     }

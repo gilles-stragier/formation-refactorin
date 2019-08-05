@@ -233,6 +233,12 @@ public class TrimestreTest {
     }
 
     @Test
+    public void testFormatYYYYTN() {
+        Trimestre t = new Trimestre("20161");
+        Assert.assertEquals("2016T1", t.asYYYYTN());
+    }
+
+    @Test
     public void testLastLocalDate() {
         Trimestre t = new Trimestre(2017, 2);
         LocalDate d = LocalDate.of(2017, 6, 30);
