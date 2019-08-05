@@ -88,7 +88,7 @@ public class ExcellAnomalieTest {
 
     @Test
     public void testBuildAnomaliesVauban() {
-        List<String> result = ExcellAnomalie.buildAnomalies(ANOMALIE_VAUBAN, true);
+        List<String> result = ExcellAnomalie.buildAnomalies(ANOMALIE_VAUBAN);
         assertEquals(2, result.size());
         assertTrue(result.get(0).contains(ANOMALIE_VAUBAN_1));
         assertTrue(result.get(1).contains(ANOMALIE_VAUBAN_2));
@@ -96,7 +96,7 @@ public class ExcellAnomalieTest {
 
     @Test
     public void testBuildAnomaliesPreVauban() {
-        List<String> result = ExcellAnomalie.buildAnomalies(ANOMALIE_OLD, false);
+        List<String> result = ExcellAnomalie.buildAnomalies(ANOMALIE_OLD);
         assertEquals(2, result.size());
         assertEquals(ANOMALIE_OLD_1_LINE_1 + " " + ANOMALIE_OLD_1_LINE_2, result.get(0));
         assertEquals(ANOMALIE_OLD_2_LINE_1 + " " + ANOMALIE_OLD_2_LINE_2, result.get(1));

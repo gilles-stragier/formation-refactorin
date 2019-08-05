@@ -84,7 +84,8 @@ public class ExcellAnomalie {
      *                             mis en application à l'occasion du refactoring Vauban de 2017.
      * @return La liste des messages d'anomalie.
      */
-    protected static List<String> buildAnomalies(String anomalie, boolean anomalieFormatVauban) {
+    protected static List<String> buildAnomalies(String anomalie) {
+
         List<String> anomalies = new ArrayList<>();
         String[] anomalieLines = anomalie.split("\n");
         for (int i = 0; i < anomalieLines.length; i++) {
@@ -99,7 +100,7 @@ public class ExcellAnomalie {
 					 */
             String currentLibelle = anomalieLines[i].trim();
 
-            if (anomalieFormatVauban) {
+            if (anomalie.matches(ANOMALIES_PATTERN)) {
                 // Code post refactoring Vauban 2017
                 oneLine.append(currentLibelle);
             } else {
@@ -409,108 +410,7 @@ public class ExcellAnomalie {
         /*
          * Liste et numéro des colonnes demandées suivant l'analyse (pas toutes peuvent être réalisées (voir détail)
          */
-        String[] headerLine = new String[31];
-        for (int i = 0; i < headerLine.length; i++) {
-            headerLine[i] = "";
-        }
-
-        /* Trim dcl : (Col. 1) Référence du trimestre de la DMF */
-        headerLine[0] = "TRIM";
-
-        /* Ref suc : (Col. 2) Réf. de la succursale qui gère le dossier */
-        headerLine[1] = "Référence Succu";
-
-        /* Nom suc : (Col. 3) Nom de la succursale qui gère le dossier */
-        headerLine[2] = "Nom de la Succu";
-
-        /* Ref equip : (Col. 4) Réf. de l'équipe qui gère le dossier */
-        headerLine[3] = "Equipe";
-
-        /* Ref gest : (Col. 5) Réf. du gestionnaire qui gère le dossier */
-        headerLine[4] = "N° gestionnaire";
-
-        /* Nom gest : (Col. 6) Nom-prénom du gestionnaire qui gère le dossier */
-        headerLine[5] = "Nom gestionnaire";
-
-        /* NLOT : (Col. 7) Numéro du lot qui contient la DMF */
-        headerLine[6] = "N° Lot";
-
-        /* Type dcl : (Col. 8) Type de DMF : Originale ou Rectificative */
-        headerLine[7] = "Type Déclaration";
-
-        /*
-         * Stat DMF : (Col. 9) Valeur du statut de la DMF - Libellé du statut A FAIRE : Libellé du statut
-         */
-        headerLine[8] = "Statut du dossier";
-
-        /* No Empl : (Col.10) Numéro de l'employeur */
-        headerLine[9] = "Dossier";
-
-        /* Nom Empl : (Col.11) Nom de l'employeur */
-        headerLine[10] = "Nom du dossier";
-
-        /* No Trav : (Col.12) Numéro du travailleur */
-        headerLine[11] = "Numéro du travailleur";
-
-        /* Nom Trav : (Col.13) Nom du travailleur */
-        headerLine[12] = "Nom du travailleur";
-
-        /* No Act : (Col.14) Numéro de l'activité */
-        headerLine[13] = "N° Activité";
-
-        /* Nom Act : (Col.15) Libellé de l'activité */
-        headerLine[14] = "Nom de l'activité";
-
-        /* No Contr : (Col.16) Numéro du contrat */
-        headerLine[15] = "N° de contrat";
-
-        /*
-         * Nom Contr : (Col.17) Libellé du contrat PAS SUPPORTE
-         */
-
-        /* IND : (Col.18) Indice ONSS */
-        headerLine[17] = "IND";
-
-        /* CAT : (Col.19) Catégorie travailleur */
-        headerLine[18] = "CAT";
-
-        /*
-         * No VOIT : (Col.20) Numéro du véhicule de société PAS SUPPORTE
-         */
-
-        /*
-         * Lib Voit : (Col.21) Description du véhicule PAS SUPPORTE
-         */
-
-        /*
-         * Plaque : (Col.22) Valeur de la plaque du véhicule PAS SUPPORTE
-         */
-
-        /*
-         * CNL : (Col.23) Code cotisation A DEFINIR
-         */
-
-        /* REJ : (Col.24) Identifiant du rejet */
-        headerLine[23] = "Classification";
-
-        /*
-         * REJ CAT : (Col.25) Catégorie du rejet (Error, Warning, Info) sur base du contenu de REJ Lib
-         */
-        headerLine[24] = "Catégorie de Rejet";
-
-        /*
-         * REJ Lib : (Col.26) Libellé du rejet est le contenu de la colonne 'anomalie' de la table 'onssanomalie'
-         */
-        headerLine[25] = "Libellé";
-
-        /*
-         * Date : (Col.27) Date du contrôle sur base de la colonne 'timestatut' de la table 'onsslot'
-         */
-        headerLine[26] = "Date du statut";
-
-        /*
-         * Heure : (Col.28) Heure du contrôle PAS SUPPORTE, peut être fait simplement
-         */
+        String[] headerLine = initHeader();
 
         Statement stmt = null;
         ResultSet rs = null;
@@ -519,70 +419,14 @@ public class ExcellAnomalie {
         File temp = null;
 
         int nossEndingDate = Util.getNossEndingQuarterDate(trimestre.asYYYYNNShort());
+
         try {
             temp = File.createTempFile("test", ".poi");
             temp.deleteOnExit();
             PrintWriter out = new PrintWriter(temp);
 
             // Par souci didactique, seules la partie de la query relative aux employeurs a été conservée... :-)
-            String sql = "select col2, col3, col4, col5, col6, col7, col8, col9a,  col9b,  col9c,  col9d,  col9e,  col9f, col10, col12, col14, col16, col18, col19, col25and26, col27  from ( "
-                    +
-
-					/*
-					    Ajout des erreurs de niveau lot
-					 */
-                    "select f_get_succuref_for_employer(sysdate, '1', olc.empcode) 																					as col2, "
-                    + // 1
-                    "f_getvaleur('SUCCU', 'NOMSUCCU',  f_get_succuid_for_employer(CURRENT_DATE, '1', olc.empcode), CURRENT_DATE, '')  								as col3, "
-                    + // 2
-                    "substr(f_getparametre('CONTACTCLI', 'ENTITEID', f_get_contactid_for_employer(CURRENT_DATE, '1', olc.empcode), CURRENT_DATE), "
-                    + "instr(f_getparametre('CONTACTCLI', 'ENTITEID', f_get_contactid_for_employer(CURRENT_DATE, '1', olc.empcode), CURRENT_DATE), 'EQUIPE:') + 16,2) as col4, "
-                    + // 3
-                    "f_get_contactid_for_employer(CURRENT_DATE, '1', olc.empcode)                                                                                   as col5, "
-                    + // 4
-                    "f_get_contactlname_for_emp(CURRENT_DATE, '1', olc.empcode) || ' ' || f_get_contactfname_for_emp(CURRENT_DATE, '1', olc.empcode)                as col6, "
-                    + // 5
-                    "ol.lotno as col7, "
-                    + // 6
-                    "ol.lottype as col8, "
-                    + // 7
-                    "ol.statut as col9a, "
-                    + // 8
-                    "ol.statutactualisation as col9b, "
-                    + // 9
-                    "olc.statut as col9c, "
-                    + // 10
-                    "olc.statutactualisation as col9d, "
-                    + // 11
-                    "' ' as col9e, "
-                    + // 12
-                    "' ' as col9f, "
-                    + // 13
-                    "olc.empcode as col10, "
-                    + // 14
-                    "' ' as col12, "
-                    + // 15
-                    "' ' as col14, "
-                    + // 16
-                    "' ' as col16, "
-                    + // 17
-                    "-1 as col18, "
-                    + // 18
-                    "' ' as col19, "
-                    + // 19
-                    "a.anomalie as col25and26, "
-                    + // 20
-                    "ol.timestatut as col27 "
-                    + // 21
-                    "from onsslot ol, onsslotclient olc, onssanomalie a "
-                    + "where ol.lottype "
-                    + (isOriginal ? "not in" : "in")
-                    + " ('R') and "
-                    + "ol.travtrimestre = '"
-                    + trimestre.asYYYYNN()
-                    + "' and "
-                    + "ol.lotno = olc.lotno and "
-                    + "a.identifiant like to_char(ol.lotno) || '.' || olc.empcode || '.______' )";
+            String sql = buildQueryForAnomaliesInAQuarter(trimestre, isOriginal);
 
             // (*) col1 où 1 fait référence à la colonne de la suite
             // présentée dans l'analyse, tandis que 1 seul fait
@@ -594,52 +438,30 @@ public class ExcellAnomalie {
 
             while (rs.next()) {
 
-                String anomalie = rs.getString(20); //
-                // if (filterOn)
-                // anomalie = filtreAnomalie(anomalie);
-                if (anomalie == null || anomalie.length() == 0) {
+                AnomalyRecord anomalyRecord = new AnomalyRecord(rs);
+
+                if (anomalyRecord.getAnomaly() == null || anomalyRecord.getAnomaly().length() == 0) {
                     continue;
                 }
-                boolean anomalieFormatVauban = anomalie.matches(ANOMALIES_PATTERN);
-                List<String> anomalies = buildAnomalies(anomalie, anomalieFormatVauban);
 
                 String[] line = new String[33];
                 for (int j = 0; j < line.length; j++) {
                     line[j] = "";
-                    // note : line[x-1] correspond à Col.X dans la suite
-                    // définie dans l'analyse
                 }
 
                 line[0] = trimestre.asYYYYTN(); // col.1
-
-                String refSuc = rs.getString(1);
-                if (refSuc == null) {
-                    refSuc = "";
-                }
-                line[1] = refSuc; // col.2
+                line[1] = anomalyRecord.getRefSuc();
 
                 String nomSuc = rs.getString(2);
-                if (nomSuc == null) {
-                    nomSuc = "";
-                }
                 line[2] = nomSuc; // col.3
 
                 String refEquip = rs.getString(3);
-                if (refEquip == null) {
-                    refEquip = "";
-                }
                 line[3] = refEquip; // col.4
 
                 String refGest = rs.getString(4);
-                if (refGest == null) {
-                    refGest = "";
-                }
                 line[4] = refGest; // col.5
 
                 String nomGest = rs.getString(5);
-                if (nomGest == null) {
-                    nomGest = "";
-                }
                 line[5] = nomGest; // col.6
 
                 Long lotNo = rs.getLong(6);
@@ -666,7 +488,7 @@ public class ExcellAnomalie {
 
                 // Génération du contenu des lignes du fichier intermédiaire correspondant à la ligne du ResultSet
                 // et écriture de ces lignes dans le fichier.
-                List<String> tempFileLines = buildTempFileLinesForAnomaly(line, anomalies, anomalieFormatVauban);
+                List<String> tempFileLines = buildTempFileLinesForAnomaly(line, buildAnomalies(rs.getString(20)), anomalyRecord.getAnomaly().matches(ANOMALIES_PATTERN));
                 for (String tempFileLine : tempFileLines) {
                     out.println(tempFileLine);
                 }
@@ -1094,6 +916,173 @@ public class ExcellAnomalie {
             LOGGER.error(i.getMessage(), i);
         }
 
+    }
+
+    private String buildQueryForAnomaliesInAQuarter(Trimestre trimestre, boolean isOriginal) {
+        return "select col2, col3, col4, col5, col6, col7, col8, col9a,  col9b,  col9c,  col9d,  col9e,  col9f, col10, col12, col14, col16, col18, col19, col25and26, col27  from ( "
+                +
+
+                /*
+                    Ajout des erreurs de niveau lot
+                 */
+                "select f_get_succuref_for_employer(sysdate, '1', olc.empcode) 																					as col2, "
+                + // 1
+                "f_getvaleur('SUCCU', 'NOMSUCCU',  f_get_succuid_for_employer(CURRENT_DATE, '1', olc.empcode), CURRENT_DATE, '')  								as col3, "
+                + // 2
+                "substr(f_getparametre('CONTACTCLI', 'ENTITEID', f_get_contactid_for_employer(CURRENT_DATE, '1', olc.empcode), CURRENT_DATE), "
+                + "instr(f_getparametre('CONTACTCLI', 'ENTITEID', f_get_contactid_for_employer(CURRENT_DATE, '1', olc.empcode), CURRENT_DATE), 'EQUIPE:') + 16,2) as col4, "
+                + // 3
+                "f_get_contactid_for_employer(CURRENT_DATE, '1', olc.empcode)                                                                                   as col5, "
+                + // 4
+                "f_get_contactlname_for_emp(CURRENT_DATE, '1', olc.empcode) || ' ' || f_get_contactfname_for_emp(CURRENT_DATE, '1', olc.empcode)                as col6, "
+                + // 5
+                "ol.lotno as col7, "
+                + // 6
+                "ol.lottype as col8, "
+                + // 7
+                "ol.statut as col9a, "
+                + // 8
+                "ol.statutactualisation as col9b, "
+                + // 9
+                "olc.statut as col9c, "
+                + // 10
+                "olc.statutactualisation as col9d, "
+                + // 11
+                "' ' as col9e, "
+                + // 12
+                "' ' as col9f, "
+                + // 13
+                "olc.empcode as col10, "
+                + // 14
+                "' ' as col12, "
+                + // 15
+                "' ' as col14, "
+                + // 16
+                "' ' as col16, "
+                + // 17
+                "-1 as col18, "
+                + // 18
+                "' ' as col19, "
+                + // 19
+                "a.anomalie as col25and26, "
+                + // 20
+                "ol.timestatut as col27 "
+                + // 21
+                "from onsslot ol, onsslotclient olc, onssanomalie a "
+                + "where ol.lottype "
+                + (isOriginal ? "not in" : "in")
+                + " ('R') and "
+                + "ol.travtrimestre = '"
+                + trimestre.asYYYYNN()
+                + "' and "
+                + "ol.lotno = olc.lotno and "
+                + "a.identifiant like to_char(ol.lotno) || '.' || olc.empcode || '.______' )";
+    }
+
+    private String[] initHeader() {
+        String[] headerLine = new String[31];
+        for (int i = 0; i < headerLine.length; i++) {
+            headerLine[i] = "";
+        }
+
+        /* Trim dcl : (Col. 1) Référence du trimestre de la DMF */
+        headerLine[0] = "TRIM";
+
+        /* Ref suc : (Col. 2) Réf. de la succursale qui gère le dossier */
+        headerLine[1] = "Référence Succu";
+
+        /* Nom suc : (Col. 3) Nom de la succursale qui gère le dossier */
+        headerLine[2] = "Nom de la Succu";
+
+        /* Ref equip : (Col. 4) Réf. de l'équipe qui gère le dossier */
+        headerLine[3] = "Equipe";
+
+        /* Ref gest : (Col. 5) Réf. du gestionnaire qui gère le dossier */
+        headerLine[4] = "N° gestionnaire";
+
+        /* Nom gest : (Col. 6) Nom-prénom du gestionnaire qui gère le dossier */
+        headerLine[5] = "Nom gestionnaire";
+
+        /* NLOT : (Col. 7) Numéro du lot qui contient la DMF */
+        headerLine[6] = "N° Lot";
+
+        /* Type dcl : (Col. 8) Type de DMF : Originale ou Rectificative */
+        headerLine[7] = "Type Déclaration";
+
+        /*
+         * Stat DMF : (Col. 9) Valeur du statut de la DMF - Libellé du statut A FAIRE : Libellé du statut
+         */
+        headerLine[8] = "Statut du dossier";
+
+        /* No Empl : (Col.10) Numéro de l'employeur */
+        headerLine[9] = "Dossier";
+
+        /* Nom Empl : (Col.11) Nom de l'employeur */
+        headerLine[10] = "Nom du dossier";
+
+        /* No Trav : (Col.12) Numéro du travailleur */
+        headerLine[11] = "Numéro du travailleur";
+
+        /* Nom Trav : (Col.13) Nom du travailleur */
+        headerLine[12] = "Nom du travailleur";
+
+        /* No Act : (Col.14) Numéro de l'activité */
+        headerLine[13] = "N° Activité";
+
+        /* Nom Act : (Col.15) Libellé de l'activité */
+        headerLine[14] = "Nom de l'activité";
+
+        /* No Contr : (Col.16) Numéro du contrat */
+        headerLine[15] = "N° de contrat";
+
+        /*
+         * Nom Contr : (Col.17) Libellé du contrat PAS SUPPORTE
+         */
+
+        /* IND : (Col.18) Indice ONSS */
+        headerLine[17] = "IND";
+
+        /* CAT : (Col.19) Catégorie travailleur */
+        headerLine[18] = "CAT";
+
+        /*
+         * No VOIT : (Col.20) Numéro du véhicule de société PAS SUPPORTE
+         */
+
+        /*
+         * Lib Voit : (Col.21) Description du véhicule PAS SUPPORTE
+         */
+
+        /*
+         * Plaque : (Col.22) Valeur de la plaque du véhicule PAS SUPPORTE
+         */
+
+        /*
+         * CNL : (Col.23) Code cotisation A DEFINIR
+         */
+
+        /* REJ : (Col.24) Identifiant du rejet */
+        headerLine[23] = "Classification";
+
+        /*
+         * REJ CAT : (Col.25) Catégorie du rejet (Error, Warning, Info) sur base du contenu de REJ Lib
+         */
+        headerLine[24] = "Catégorie de Rejet";
+
+        /*
+         * REJ Lib : (Col.26) Libellé du rejet est le contenu de la colonne 'anomalie' de la table 'onssanomalie'
+         */
+        headerLine[25] = "Libellé";
+
+        /*
+         * Date : (Col.27) Date du contrôle sur base de la colonne 'timestatut' de la table 'onsslot'
+         */
+        headerLine[26] = "Date du statut";
+
+        /*
+         * Heure : (Col.28) Heure du contrôle PAS SUPPORTE, peut être fait simplement
+         */
+        return headerLine;
     }
 
     private boolean validateQuarter(String onssTrimestreProperty) {
