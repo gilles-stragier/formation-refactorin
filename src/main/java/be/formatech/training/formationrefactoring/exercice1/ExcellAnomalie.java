@@ -38,15 +38,19 @@ public class ExcellAnomalie {
 
     private final AnomalyRecordDao anomalyRecordDao;
     private final ReportLineMapper reportLineMapper;
+    private final ExcelAnomalieArgumentsValidator argumentsValidator;
 
     private String[] filenames;
 
+
     public ExcellAnomalie(
             AnomalyRecordDao anomalyRecordDao,
-            ReportLineMapper reportLineMapper
+            ReportLineMapper reportLineMapper,
+            ExcelAnomalieArgumentsValidator argumentsValidator
     ) {
         this.anomalyRecordDao = anomalyRecordDao;
         this.reportLineMapper = reportLineMapper;
+        this.argumentsValidator = argumentsValidator;
     }
 
     public static void main(String[] args) {
@@ -55,7 +59,8 @@ public class ExcellAnomalie {
                     new AnomalyRecordDao(),
                     new ReportLineMapper(
                             new EmployeurDao()
-                    )
+                    ),
+                    new ExcelAnomalieArgumentsValidator()
             );
 
             // Les quelques lignes ci-dessous simulent la récupération des arguments du batch ainsi que
@@ -292,21 +297,7 @@ public class ExcellAnomalie {
 
     protected void executeBatch(Properties properties) throws Exercice1Exception {
 
-        /* Tester les arguments manquants */
-        if (properties.getProperty("ONSSTRIMESTRE") == null) {
-            LOGGER.error("*** FATAL ERROR missing arg 'ONSSTRIMESTRE'.");
-            return;
-        } else if (!validateQuarter(properties.getProperty("ONSSTRIMESTRE"))) {
-            return;
-        }
-
-        if (properties.getProperty("ISORIGINAL").toLowerCase() == null) {
-            LOGGER.error("*** FATAL ERROR missing arg 'ISORIGINAL'.");
-            return;
-        } else if (!(",true,false,".indexOf(properties.getProperty("ISORIGINAL").toLowerCase()) != -1)) {
-            LOGGER.error("*** FATAL ERROR invalid value '" + properties.getProperty("ISORIGINAL").toLowerCase() + "' for arg 'ISORIGINAL'.");
-            return;
-        }
+        if (!argumentsValidator.isValid(properties)) return;
 
         Trimestre trimestre = new Trimestre(properties.getProperty("ONSSTRIMESTRE"));
 
@@ -316,15 +307,19 @@ public class ExcellAnomalie {
 
         buildExcel(fullPathFileName, trimestre, ("true".equals(properties.getProperty("ISORIGINAL").toLowerCase())));
 
+        createGoFiles(properties.getProperty("repertoire.rejet.dmf"));
+
+    }
+
+    private void createGoFiles(String rejetDirectory) throws Exercice1Exception {
         for (String name : this.filenames) {
             try {
                 String n = new File(name).getName();
-                new File(properties.getProperty("repertoire.rejet.dmf"), n.substring(0, n.length() - 4) + ".GO").createNewFile();
+                new File(rejetDirectory, n.substring(0, n.length() - 4) + ".GO").createNewFile();
             } catch (IOException e) {
                 throw new Exercice1Exception(e.getMessage(), e);
             }
         }
-
     }
 
     private String formatLotType(Properties properties) {
@@ -505,33 +500,6 @@ public class ExcellAnomalie {
          * Heure : (Col.28) Heure du contrôle PAS SUPPORTE, peut être fait simplement
          */
         return headerLine;
-    }
-
-    private boolean validateQuarter(String onssTrimestreProperty) {
-
-        try {
-            Integer.valueOf(onssTrimestreProperty);
-        } catch (Exception e) {
-            LOGGER.error("*** FATAL ERROR invalid value '" + onssTrimestreProperty + "' for arg 'ONSSTRIMESTRE'.");
-            return false;
-        }
-
-        int yyyy0q = Integer.valueOf(onssTrimestreProperty);
-
-        if (trimestreYear(yyyy0q) < 2000 || (trimestreYear(yyyy0q)) > 2099 || trimestreQuarter(yyyy0q) < 1 || (trimestreQuarter(yyyy0q)) > 4) {
-            LOGGER.error("*** FATAL ERROR invalid value '" + onssTrimestreProperty + "' for arg 'ONSSTRIMESTRE'.");
-            return false;
-        }
-
-        return true;
-    }
-
-    private int trimestreQuarter(int yyyy0q) {
-        return yyyy0q % 100;
-    }
-
-    private int trimestreYear(int yyyy0q) {
-        return yyyy0q / 100;
     }
 
 }

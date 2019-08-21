@@ -55,7 +55,8 @@ public class ExcellAnomalieTest {
                 new AnomalyRecordDao(),
                 new ReportLineMapper(
                         new EmployeurDao()
-                )
+                ),
+                new ExcelAnomalieArgumentsValidator()
         );
         assertEquals("20000301130304", excellAnomalie.nowAsYYYYMMDDHHMMSS(someDate));
 
