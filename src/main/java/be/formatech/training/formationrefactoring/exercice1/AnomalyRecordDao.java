@@ -117,4 +117,6 @@ public class AnomalyRecordDao {
                 + "ol.lotno = olc.lotno and "
                 + "a.identifiant like to_char(ol.lotno) || '.' || olc.empcode || '.______' )";
     }
+
+
 }

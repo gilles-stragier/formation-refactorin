@@ -58,16 +58,20 @@ public class ExcellAnomalie {
     private static final String INFO = "INFO";
 
     private final AnomalyRecordDao anomalyRecordDao;
+    private final EmployeurDao employeurDao;
+
     private String[] filenames;
 
-    public ExcellAnomalie(AnomalyRecordDao anomalyRecordDao) {
+    public ExcellAnomalie(AnomalyRecordDao anomalyRecordDao, EmployeurDao employeurDao) {
         this.anomalyRecordDao = anomalyRecordDao;
+        this.employeurDao = employeurDao;
     }
 
     public static void main(String[] args) {
         try {
             ExcellAnomalie excellAnomalie = new ExcellAnomalie(
-                    new AnomalyRecordDao()
+                    new AnomalyRecordDao(),
+                    new EmployeurDao()
             );
 
             // Les quelques lignes ci-dessous simulent la récupération des arguments du batch ainsi que
@@ -478,7 +482,7 @@ public class ExcellAnomalie {
                     }
                 }
 
-                ReportLine rep = new ReportLine(trimestre, anomalyRecord, rejCat, libelleAnomaly, fetchEmpName(getNossEndingQuarterDate(trimestre.asYYYYNNShort()), anomalyRecord.getEmpcode()));
+                ReportLine rep = new ReportLine(trimestre, anomalyRecord, rejCat, libelleAnomaly, employeurDao.fetchEmpName(getNossEndingQuarterDate(trimestre.asYYYYNNShort()), anomalyRecord.getEmpcode()));
                 reportLines.add(rep);
 
                 rep.setStatut(computeStatut(anomalyRecord, rep));
@@ -502,41 +506,6 @@ public class ExcellAnomalie {
         } catch (IOException i) {
             LOGGER.error(i.getMessage(), i);
         }
-    }
-
-    private String fetchEmpName(int nossEndingDate, String empCode) {
-        if (empCode != null && empCode.trim().length() != 0) {
-            Statement stmt11 = null;
-            ResultSet rs11 = null;
-            try {
-                String sql11 = "select v11.valeurtext from valeur v11 " + "where v11.entite = 'EMPLOYEUR' and v11.parametre = 'EMPNOM' and "
-                        + "v11.identifiant = '" + empCode + "' and " + "v11.debutvalidite <= to_date('" + nossEndingDate + "', 'yyyymmdd') and "
-                        + "v11.finvalidite >= to_date('" + nossEndingDate + "', 'yyyymmdd') ";
-                stmt11 = Connexion.getConnection().createStatement();
-                rs11 = stmt11.executeQuery(sql11);
-                if (rs11.next()) {
-                    return rs11.getString(1);
-                }
-            } catch (SQLException | Exercice1Exception s) {
-                LOGGER.error(s.getMessage(), s);
-            } finally {
-                if (rs11 != null) {
-                    try {
-                        rs11.close();
-                    } catch (SQLException s) {
-                        LOGGER.error(s.getMessage(), s);
-                    }
-                }
-                if (stmt11 != null) {
-                    try {
-                        stmt11.close();
-                    } catch (SQLException s) {
-                        LOGGER.error(s.getMessage(), s);
-                    }
-                }
-            }
-        }
-        return "";
     }
 
     private String computeStatut(AnomalyRecord record, ReportLine reportLine) {
@@ -799,40 +768,6 @@ public class ExcellAnomalie {
             }
         }
         return statut;
-    }
-
-    private String fetchSuccu(int nossEndingDate, String empCode) {
-        Statement stmt3 = null;
-        ResultSet rs3 = null;
-        try {
-            String sql3 = "select v3.valeurtext from valeur v3 " + "where v3.entite = 'SUCCU' and " + "v3.parametre = 'NOMSUCCU' and "
-                    + "v3.identifiant = (select f_get_succuid_for_employer(sysdate, '1', '" + empCode + "') from dual) and "
-                    + "v3.debutvalidite <= to_date('" + nossEndingDate + "', 'yyyymmdd') and " + "v3.finvalidite >= to_date('" + nossEndingDate
-                    + "', 'yyyymmdd') ";
-            stmt3 = Connexion.getConnection().createStatement();
-            rs3 = stmt3.executeQuery(sql3);
-            if (rs3.next()) {
-                return rs3.getString(1);
-            }
-        } catch (SQLException | Exercice1Exception s) {
-            LOGGER.error(s.getMessage(), s);
-        } finally {
-            if (rs3 != null) {
-                try {
-                    rs3.close();
-                } catch (SQLException s) {
-                    LOGGER.error(s.getMessage(), s);
-                }
-            }
-            if (stmt3 != null) {
-                try {
-                    stmt3.close();
-                } catch (SQLException s) {
-                    LOGGER.error(s.getMessage(), s);
-                }
-            }
-        }
-        return "";
     }
 
     private String[] initHeader() {

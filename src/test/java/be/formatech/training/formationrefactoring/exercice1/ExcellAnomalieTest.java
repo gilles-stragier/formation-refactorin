@@ -54,7 +54,8 @@ public class ExcellAnomalieTest {
         LocalDateTime someDate = LocalDateTime.of(2000, MARCH, 1, 13, 3, 4);
 
         ExcellAnomalie excellAnomalie = new ExcellAnomalie(
-                new AnomalyRecordDao()
+                new AnomalyRecordDao(),
+                new EmployeurDao()
         );
         assertEquals("20000301130304", excellAnomalie.nowAsYYYYMMDDHHMMSS(someDate));
 
