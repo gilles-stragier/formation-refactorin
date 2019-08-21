@@ -81,49 +81,6 @@ public class ExcellAnomalie {
         }
     }
 
-    /**
-     * Construit une liste de lignes à écrire dans le fichier temporaire sur base d'un modèle de ligne qui reprend toutes
-     * les informations communes à une liste d'anomalies ayant le même identifiant dans la table OnssAnomalie.
-     *
-     * @param anomalies       liste des messages d'anomalie
-     * @param anomaliesVauban <code>true</code> si les messages sont au format postRefactoring Vauban de 2017, <code>false</code> sinon.
-     */
-    static List<String> buildTempFileLinesForAnomaly(String[] immutableLine, List<String> anomalies, boolean anomaliesVauban) {
-        String[] line = Arrays.copyOf(immutableLine, immutableLine.length);
-        List<String> tempFileLines = new ArrayList<>();
-
-        for (String anomaly : anomalies) {
-            String rejCat = AnomalyRecord.INFO;
-            if (anomaliesVauban) {
-				/*
-					Pour une version par du code post refactoring Vauban de 2017, il faut considérer qu'une anomalie codifiée
-					comme WARNING est à catégoriser comme ERROR. Pour éviter qu'on ne voie une catérie ERROR et dans
-					la colonne suivante un libellé commeçant par WARNING, il faut parser l'anomalie pour en extraire la
-					partie libellé.
-				 */
-                String[] parts = anomaly.split("-\\d{3,5}##");
-                String niveauRejet = parts[0];
-                line[30] = parts[1]; // col.26
-                if (AnomalyRecord.WARNING.equals(niveauRejet) || AnomalyRecord.ERROR.equals(niveauRejet)) {
-                    rejCat = AnomalyRecord.ERROR;
-                }
-            } else {
-                line[30] = anomaly;
-                if (anomaly.toUpperCase().contains(AnomalyRecord.ERROR)) {
-                    rejCat = AnomalyRecord.ERROR;
-                } else if (anomaly.toUpperCase().contains(AnomalyRecord.WARNING)) {
-                    rejCat = AnomalyRecord.WARNING;
-                }
-            }
-            line[29] = rejCat; // col.25
-
-            // Production d'une ligne du fichier
-            tempFileLines.add(String.join("\t", line));
-        }
-        return tempFileLines;
-    }
-
-
     protected void executeBatch(Properties properties) throws Exercice1Exception {
 
         if (!argumentsValidator.isValid(properties)) return;
