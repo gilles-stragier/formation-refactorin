@@ -4,6 +4,7 @@ import org.apache.poi.hssf.usermodel.HSSFRow;
 import org.apache.poi.hssf.usermodel.HSSFSheet;
 import org.apache.poi.hssf.usermodel.HSSFWorkbook;
 import org.junit.Assert;
+import org.junit.Before;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -39,12 +40,21 @@ public class ExcellAnomalieTest {
     private final static String ANOMALIE_OLD_2 = ANOMALIE_OLD_2_LINE_1 + "\r\n" + ANOMALIE_OLD_2_LINE_2;
     private final static String ANOMALIE_OLD= ANOMALIE_OLD_1 + "\r\n" + ANOMALIE_OLD_2;
 
+    @Before
+    public void setup() {
+        File[] candidates = new File("C:\\Temp").listFiles((dir, name) -> name.matches("toto_DMF_detail_2019T2_O_.*xls"));
+        Arrays.stream(candidates).forEach(File::delete);
+
+        File[] candidatesGoFiles = new File("C:\\Temp").listFiles((dir, name) -> name.matches("toto_DMF_detail_2019T2_O_.*GO"));
+        Arrays.stream(candidatesGoFiles).forEach(File::delete);
+    }
+
     @Test
     public void nowAsString(){
         LocalDateTime someDate = LocalDateTime.of(2000, MARCH, 1, 13, 3, 4);
 
         ExcellAnomalie excellAnomalie = new ExcellAnomalie();
-        Assert.assertEquals("20000301130304", excellAnomalie.nowAsYYYYMMDDHHMMSS(someDate));
+        assertEquals("20000301130304", excellAnomalie.nowAsYYYYMMDDHHMMSS(someDate));
 
     }
 
@@ -52,9 +62,12 @@ public class ExcellAnomalieTest {
     public void validateExcellFile() throws Exception {
         ExcellAnomalie.main(null);
 
+        assertEquals(1, new File("C:\\Temp").listFiles((dir, name) -> name.matches("toto_DMF_detail_2019T2_O_.*GO")).length);
+
         File[] candidates = new File("C:\\Temp").listFiles((dir, name) -> name.matches("toto_DMF_detail_2019T2_O_.*xls"));
-        Arrays.sort(candidates, Comparator.comparingLong(File::lastModified).reversed());
-        File file = Arrays.stream(candidates).findFirst().orElseThrow(() -> new IllegalStateException("On aurait dû avoir un rapport d'anomalie..."));
+        assertEquals(1, candidates.length);
+
+        File file = candidates[0];
         LOGGER.info("Selected Excel file: " + file.getAbsolutePath());
 
         HSSFWorkbook myWorkBook = new HSSFWorkbook(new FileInputStream(file));
