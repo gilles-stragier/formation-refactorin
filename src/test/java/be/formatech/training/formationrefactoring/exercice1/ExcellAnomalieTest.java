@@ -3,7 +3,6 @@ package be.formatech.training.formationrefactoring.exercice1;
 import org.apache.poi.hssf.usermodel.HSSFRow;
 import org.apache.poi.hssf.usermodel.HSSFSheet;
 import org.apache.poi.hssf.usermodel.HSSFWorkbook;
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 import org.slf4j.Logger;
@@ -14,7 +13,6 @@ import java.io.FileInputStream;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Comparator;
 import java.util.List;
 
 import static java.time.Month.MARCH;
@@ -55,7 +53,9 @@ public class ExcellAnomalieTest {
 
         ExcellAnomalie excellAnomalie = new ExcellAnomalie(
                 new AnomalyRecordDao(),
-                new EmployeurDao()
+                new ReportLineMapper(
+                        new EmployeurDao()
+                )
         );
         assertEquals("20000301130304", excellAnomalie.nowAsYYYYMMDDHHMMSS(someDate));
 
@@ -102,7 +102,7 @@ public class ExcellAnomalieTest {
 
     @Test
     public void testBuildAnomaliesVauban() {
-        List<String> result = ExcellAnomalie.splitAnomalyTextArea(ANOMALIE_VAUBAN);
+        List<String> result = ReportLineMapper.splitAnomalyTextArea(ANOMALIE_VAUBAN);
         assertEquals(2, result.size());
         assertTrue(result.get(0).contains(ANOMALIE_VAUBAN_1));
         assertTrue(result.get(1).contains(ANOMALIE_VAUBAN_2));
@@ -110,7 +110,7 @@ public class ExcellAnomalieTest {
 
     @Test
     public void testBuildAnomaliesPreVauban() {
-        List<String> result = ExcellAnomalie.splitAnomalyTextArea(ANOMALIE_OLD);
+        List<String> result = ReportLineMapper.splitAnomalyTextArea(ANOMALIE_OLD);
         assertEquals(2, result.size());
         assertEquals(ANOMALIE_OLD_1_LINE_1 + " " + ANOMALIE_OLD_1_LINE_2, result.get(0));
         assertEquals(ANOMALIE_OLD_2_LINE_1 + " " + ANOMALIE_OLD_2_LINE_2, result.get(1));

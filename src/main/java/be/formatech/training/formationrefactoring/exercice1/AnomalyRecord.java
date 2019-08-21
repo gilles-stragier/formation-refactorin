@@ -7,6 +7,24 @@ import java.sql.SQLException;
 
 public class AnomalyRecord {
 
+    /**
+     * Expression régulière décrivant le format d'encodage des anomalies dans la gestion des lots DMFA/DMWA adopté dans le
+     * cadre du refactoring Vauban de 2017..
+     * L'expression ne contient pas le message proprement dit mais bien la forme du préfixe utilisé.
+     * Le format complet de codage des <code>LotAnomalie</code> est décrit par {@link #ANOMALIES_PATTERN}.
+     */
+    private static final String WARNING_PATTERN = "(WARNING|ERROR)-\\d{3,5}##";
+    /**
+     * Les anomalies associées à un identifient sont une suite de 1 ou plusieurs anomalies (d'où la forme "(....)+" de l'expression régulière).
+     * Chaque anomalie est codée sour la forme d'un pattern composé du mot WARNING, d'un tiret, d'un numéro d'anomalie,
+     * d'un séparateur ("##") et d'un message terminé par une des différentes formes possibles de retour à la ligne.
+     */
+    static final String ANOMALIES_PATTERN = "(" + WARNING_PATTERN + ".+(\\r\\n|\\r|\\n))+";
+    static final String ERROR = "ERROR";
+    static final String WARNING = "WARNING";
+    static final String INFO = "INFO";
+
+
     private final String lottype;
     private final String anomaly;
     private final String refSuc;
