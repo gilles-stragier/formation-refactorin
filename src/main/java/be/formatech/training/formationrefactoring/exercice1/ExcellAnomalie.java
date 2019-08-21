@@ -4,10 +4,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
-import java.io.IOException;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Properties;
 
@@ -36,21 +33,20 @@ public class ExcellAnomalie {
     private final ReportLineMapper reportLineMapper;
     private final ExcelAnomalieArgumentsValidator argumentsValidator;
     private final ReportLinesExcelRenderer reportLinesExcelRenderer;
-
-
-
-
+    private final GoFilesGenerator excelAnomalieGoFilesGenerator;
 
     public ExcellAnomalie(
             AnomalyRecordDao anomalyRecordDao,
             ReportLineMapper reportLineMapper,
             ExcelAnomalieArgumentsValidator argumentsValidator,
-            ReportLinesExcelRenderer reportLinesExcelRenderer
+            ReportLinesExcelRenderer reportLinesExcelRenderer,
+            GoFilesGenerator excelAnomalieGoFilesGenerator
     ) {
         this.anomalyRecordDao = anomalyRecordDao;
         this.reportLineMapper = reportLineMapper;
         this.argumentsValidator = argumentsValidator;
         this.reportLinesExcelRenderer = reportLinesExcelRenderer;
+        this.excelAnomalieGoFilesGenerator = excelAnomalieGoFilesGenerator;
     }
 
     public static void main(String[] args) {
@@ -61,7 +57,8 @@ public class ExcellAnomalie {
                             new EmployeurDao()
                     ),
                     new ExcelAnomalieArgumentsValidator(),
-                    new ReportLinesExcelRenderer()
+                    new ReportLinesExcelRenderer(),
+                    new ExcelAnomalieGoFilesGenerator()
             );
 
             // Les quelques lignes ci-dessous simulent la récupération des arguments du batch ainsi que
@@ -97,19 +94,8 @@ public class ExcellAnomalie {
 
         List<String> fileNames = reportLinesExcelRenderer.render(fullPathFileName, reportLines);
 
-        createGoFiles(properties.getProperty("repertoire.rejet.dmf"), fileNames);
+        excelAnomalieGoFilesGenerator.createGoFiles(properties.getProperty("repertoire.rejet.dmf"), fileNames);
 
-    }
-
-    private void createGoFiles(String rejetDirectory, List<String> fileNames) throws Exercice1Exception {
-        for (String name : fileNames) {
-            try {
-                String n = new File(name).getName();
-                new File(rejetDirectory, n.substring(0, n.length() - 4) + ".GO").createNewFile();
-            } catch (IOException e) {
-                throw new Exercice1Exception(e.getMessage(), e);
-            }
-        }
     }
 
     private String formatLotType(Properties properties) {

@@ -57,7 +57,8 @@ public class ExcellAnomalieTest {
                         new EmployeurDao()
                 ),
                 new ExcelAnomalieArgumentsValidator(),
-                new ReportLinesExcelRenderer()
+                new ReportLinesExcelRenderer(),
+                new ExcelAnomalieGoFilesGenerator()
         );
         assertEquals("20000301130304", excellAnomalie.nowAsYYYYMMDDHHMMSS(someDate));
 
