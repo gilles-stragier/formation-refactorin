@@ -18,6 +18,8 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Properties;
 
+import static be.formatech.training.formationrefactoring.exercice1.Util.getNossEndingQuarterDate;
+
 /**
  * <b>Exercice 1 : Cette classe est une simplification de la classe ExcellAnomalie de ForHRM.</b>
  * <p>
@@ -29,7 +31,7 @@ import java.util.Properties;
  * Il est donc interdit de toucher aux classes du package "internal" puisqu'elles sont censées faire partie du JDK voire
  * d'autres bibliothèques. Toutefois, comme les requêtes à la base de données sont simulées, si vous tenez absolument à toucher
  * aux requêtes SQL ou si vous modifiez les paramètres qui sont passés à cette requête, vous devrez modifier la constante
- * {@link Statement#QUERY_LOTS} pour qu'elle corresponde à votre nouvelle requête et la constante {@link Statement#RESULT_LOTS}
+ * QUERY_LOTS pour qu'elle corresponde à votre nouvelle requête et la constante RESULT_LOTS
  * qui contient les résultats retournés par la requête.
  * </p>
  */
@@ -40,13 +42,13 @@ public class ExcellAnomalie {
      * L'expression ne contient pas le message proprement dit mais bien la forme du préfixe utilisé.
      * Le format complet de codage des <code>LotAnomalie</code> est décrit par {@link #ANOMALIES_PATTERN}.
      */
-    public static final String WARNING_PATTERN = "(WARNING|ERROR)-\\d{3,5}##";
+    private static final String WARNING_PATTERN = "(WARNING|ERROR)-\\d{3,5}##";
     /**
      * Les anomalies associées à un identifient sont une suite de 1 ou plusieurs anomalies (d'où la forme "(....)+" de l'expression régulière).
      * Chaque anomalie est codée sour la forme d'un pattern composé du mot WARNING, d'un tiret, d'un numéro d'anomalie,
      * d'un séparateur ("##") et d'un message terminé par une des différentes formes possibles de retour à la ligne.
      */
-    public static final String ANOMALIES_PATTERN = "(" + WARNING_PATTERN + ".+(\\r\\n|\\r|\\n))+";
+    private static final String ANOMALIES_PATTERN = "(" + WARNING_PATTERN + ".+(\\r\\n|\\r|\\n))+";
     static final int MAXROW = 65535; // dernier numéro de ligne sur une feuille (numérotées de 0 à 65535)
     private static final Logger LOGGER = LoggerFactory.getLogger(ExcellAnomalie.class);
     private static final String ERROR = "ERROR";
@@ -82,7 +84,7 @@ public class ExcellAnomalie {
      * @param anomalie             contenu d'une cellule de la table OnssAnomalie
      * @return La liste des messages d'anomalie.
      */
-    protected static List<String> splitAnomalyTextArea(String anomalie) {
+    static List<String> splitAnomalyTextArea(String anomalie) {
 
         List<String> anomalies = new ArrayList<>();
         String[] anomalieLines = anomalie.split("\n");
@@ -114,7 +116,7 @@ public class ExcellAnomalie {
                 i++;
                 while (i < anomalieLines.length && !anomalieLines[i].toUpperCase().contains(ERROR)
                         && !anomalieLines[i].toUpperCase().contains(WARNING) && !anomalieLines[i].toUpperCase().contains(INFO)) {
-                    oneLine.append(" " + anomalieLines[i].replace("\r", "").replace("\n", "").trim());
+                    oneLine.append(" ").append(anomalieLines[i].replace("\r", "").replace("\n", "").trim());
                     i++;
                 }
                 i--;
@@ -128,14 +130,10 @@ public class ExcellAnomalie {
      * Construit une liste de lignes à écrire dans le fichier temporaire sur base d'un modèle de ligne qui reprend toutes
      * les informations communes à une liste d'anomalies ayant le même identifiant dans la table OnssAnomalie.
      *
-     * @param line            Ensemble des 32 informations de base d'une liste à faire figurer dans le fichier temporaire, et donc
-     *                        dans le fichier Excel, à l'exception des messages d'anomalies (line[30]) et du statut d'erreur qui
-     *                        découle de ces anomalies (line[29])
      * @param anomalies       liste des messages d'anomalie
      * @param anomaliesVauban <code>true</code> si les messages sont au format postRefactoring Vauban de 2017, <code>false</code> sinon.
-     * @return
      */
-    protected static List<String> buildTempFileLinesForAnomaly(String[] immutableLine, List<String> anomalies, boolean anomaliesVauban) {
+    static List<String> buildTempFileLinesForAnomaly(String[] immutableLine, List<String> anomalies, boolean anomaliesVauban) {
         String[] line = Arrays.copyOf(immutableLine, immutableLine.length);
         List<String> tempFileLines = new ArrayList<>();
 
@@ -156,9 +154,9 @@ public class ExcellAnomalie {
                 }
             } else {
                 line[30] = anomaly;
-                if (anomaly.toUpperCase().indexOf(ERROR) != -1) {
+                if (anomaly.toUpperCase().contains(ERROR)) {
                     rejCat = ERROR;
-                } else if (anomaly.toUpperCase().indexOf(WARNING) != -1) {
+                } else if (anomaly.toUpperCase().contains(WARNING)) {
                     rejCat = WARNING;
                 }
             }
@@ -253,7 +251,7 @@ public class ExcellAnomalie {
         myCell.setCellValue(line[5]);
 
         myCell = myRow.createCell(cellNum++);
-        myCell.setCellValue(Long.valueOf(line[6]).longValue());
+        myCell.setCellValue(Long.valueOf(line[6]));
 
         myCell = myRow.createCell(cellNum++);
         myCell.setCellValue(line[7]);
@@ -297,7 +295,7 @@ public class ExcellAnomalie {
         myCell = myRow.createCell(cellNum++);
         myCell.setCellValue(line[30]);
 
-        myCell = myRow.createCell(cellNum++);
+        myCell = myRow.createCell(cellNum);
         myCell.setCellValue(line[31]);
 
         return rowNum;
@@ -353,9 +351,6 @@ public class ExcellAnomalie {
             return;
         }
 
-        /*
-         * Type de lots demandé : - true => lots originaux (non rectificatifs) - false => lots rectificatifs
-         */
         if (properties.getProperty("ISORIGINAL").toLowerCase() == null) {
             LOGGER.error("*** FATAL ERROR missing arg 'ISORIGINAL'.");
             return;
@@ -407,21 +402,87 @@ public class ExcellAnomalie {
 
     private void buildExcel(String fullPathFileName, Trimestre trimestre, boolean isOriginal) {
 
-        /*
-         * Liste et numéro des colonnes demandées suivant l'analyse (pas toutes peuvent être réalisées (voir détail)
-         */
+        List<AnomalyRecord> anomalyRecords = fetchAnomalyRecords(trimestre, isOriginal);
+
+        List<ReportLine> reportLines = buildReportLines(trimestre, anomalyRecords);
+
+        renderToExcel(fullPathFileName, reportLines);
+
+    }
+
+    private void renderToExcel(String fullPathFileName, List<ReportLine> reportLines) {
+        List<String> vFilenames = new ArrayList<>();
+        int myWorkBookNum = 0;
+        HSSFWorkbook myWorkBook = null;
+        HSSFSheet mySheet;
+        int rowNum = 0;
         String[] headerLine = initHeader();
 
+
+        for (ReportLine rl : reportLines) {
+            StringBuilder sMyWorkBookNum = new StringBuilder(Integer.valueOf(myWorkBookNum).toString());
+            StringBuilder sRowNum = new StringBuilder(Integer.valueOf(rowNum).toString());
+            myWorkBook = createNextRow(fullPathFileName, sMyWorkBookNum, vFilenames, myWorkBook, headerLine, sRowNum, rl.toLine());
+            myWorkBookNum = Integer.valueOf(sMyWorkBookNum.toString());
+            rowNum = Integer.valueOf(sRowNum.toString());
+        }
+
+        if (myWorkBook == null) { // création feuille Excel sans résultats
+            myWorkBook = new HSSFWorkbook();
+            mySheet = myWorkBook.createSheet();
+            createNewWorkBook(mySheet, headerLine);
+        }
+
+        writeWorkbookToDisk(fullPathFileName, vFilenames, myWorkBookNum, myWorkBook);
+    }
+
+    private List<ReportLine> buildReportLines(Trimestre trimestre, List<AnomalyRecord> anomalyRecords) {
+        List<ReportLine> reportLines = new ArrayList<>();
+
+        for(AnomalyRecord anomalyRecord : anomalyRecords) {
+            if (anomalyRecord.getAnomaly() == null || anomalyRecord.getAnomaly().length() == 0) {
+                continue;
+            }
+
+            // Génération du contenu des lignes du fichier intermédiaire correspondant à la ligne du ResultSet
+            // et écriture de ces lignes dans le fichier.
+            List<String> anomalies = splitAnomalyTextArea(anomalyRecord.getAnomaly());
+
+            for (String anomaly : anomalies) {
+
+                String rejCat = INFO;
+                String libelleAnomaly = null;
+
+                if (anomalyRecord.getAnomaly().matches(ANOMALIES_PATTERN)) {
+                    libelleAnomaly = anomaly.split("-\\d{3,5}##")[1];
+
+                    if (WARNING.equals(anomaly.split("-\\d{3,5}##")[0]) || ERROR.equals(anomaly.split("-\\d{3,5}##")[0])) {
+                        rejCat = ERROR;
+                    }
+                } else {
+                    libelleAnomaly = anomaly;
+                    if (anomaly.toUpperCase().contains(ERROR)) {
+                        rejCat = ERROR;
+                    } else if (anomaly.toUpperCase().contains(WARNING)) {
+                        rejCat = WARNING;
+                    }
+                }
+
+                ReportLine rep = new ReportLine(trimestre, anomalyRecord, rejCat, libelleAnomaly, fetchEmpName(getNossEndingQuarterDate(trimestre.asYYYYNNShort()), anomalyRecord.getEmpcode()));
+                reportLines.add(rep);
+
+                rep.setStatut(computeStatut(anomalyRecord, rep));
+            }
+
+        }
+        return reportLines;
+    }
+
+    private List<AnomalyRecord> fetchAnomalyRecords(Trimestre trimestre, boolean isOriginal) {
         Statement stmt = null;
         ResultSet rs = null;
 
-        // 1ère passe
-        File temp = null;
-
-        int nossEndingDate = Util.getNossEndingQuarterDate(trimestre.asYYYYNNShort());
-
-        List<ReportLine> reportLines = new ArrayList<>();
-
+        List<AnomalyRecord> anomalyRecords = new ArrayList<>();
         try {
 
             // Par souci didactique, seules la partie de la query relative aux employeurs a été conservée... :-)
@@ -435,48 +496,8 @@ public class ExcellAnomalie {
 
             rs = stmt.executeQuery(sql);
 
-
-
             while (rs.next()) {
-
-                AnomalyRecord anomalyRecord = new AnomalyRecord(rs);
-
-                if (anomalyRecord.getAnomaly() == null || anomalyRecord.getAnomaly().length() == 0) {
-                    continue;
-                }
-
-
-                // Génération du contenu des lignes du fichier intermédiaire correspondant à la ligne du ResultSet
-                // et écriture de ces lignes dans le fichier.
-                List<String> anomalies = splitAnomalyTextArea(anomalyRecord.getAnomaly());
-
-
-
-                for (String anomaly : anomalies) {
-
-                    String rejCat = INFO;
-                    String libelleAnomaly = null;
-
-                    if (anomalyRecord.getAnomaly().matches(ANOMALIES_PATTERN)) {
-                        libelleAnomaly = anomaly.split("-\\d{3,5}##")[1];
-
-                        if (WARNING.equals(anomaly.split("-\\d{3,5}##")[0]) || ERROR.equals(anomaly.split("-\\d{3,5}##")[0])) {
-                            rejCat = ERROR;
-                        }
-                    } else {
-                        libelleAnomaly = anomaly;
-                        if (anomaly.toUpperCase().indexOf(ERROR) != -1) {
-                            rejCat = ERROR;
-                        } else if (anomaly.toUpperCase().indexOf(WARNING) != -1) {
-                            rejCat = WARNING;
-                        }
-                    }
-
-                    ReportLine rep = new ReportLine(trimestre, anomalyRecord, rejCat, libelleAnomaly, fetchEmpName(nossEndingDate, anomalyRecord.getEmpcode()));
-                    reportLines.add(rep);
-
-                    rep.setStatut(computeStatut(anomalyRecord, rep));
-                }
+                anomalyRecords.add(new AnomalyRecord(rs));
 
             }
 
@@ -498,29 +519,7 @@ public class ExcellAnomalie {
                 }
             }
         }
-
-        List<String> vFilenames = new ArrayList<>();
-        int myWorkBookNum = 0;
-        HSSFWorkbook myWorkBook = null;
-        HSSFSheet mySheet;
-        int rowNum = 0;
-
-        for (ReportLine rl : reportLines) {
-            StringBuilder sMyWorkBookNum = new StringBuilder(Integer.valueOf(myWorkBookNum).toString());
-            StringBuilder sRowNum = new StringBuilder(Integer.valueOf(rowNum).toString());
-            myWorkBook = createNextRow(fullPathFileName, sMyWorkBookNum, vFilenames, myWorkBook, headerLine, sRowNum, rl.toLine());
-            myWorkBookNum = Integer.valueOf(sMyWorkBookNum.toString());
-            rowNum = Integer.valueOf(sRowNum.toString());
-        }
-
-        if (myWorkBook == null) { // création feuille Excel sans résultats
-            myWorkBook = new HSSFWorkbook();
-            mySheet = myWorkBook.createSheet();
-            createNewWorkBook(mySheet, headerLine);
-        }
-
-        writeWorkbookToDisk(fullPathFileName, vFilenames, myWorkBookNum, myWorkBook);
-
+        return anomalyRecords;
     }
 
     private void writeWorkbookToDisk(String fullPathFileName, List<String> vFilenames, int myWorkBookNum, HSSFWorkbook myWorkBook) {
