@@ -9,7 +9,9 @@ import org.apache.poi.hssf.usermodel.HSSFWorkbook;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.*;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
 import java.sql.SQLException;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -36,6 +38,7 @@ import static be.formatech.training.formationrefactoring.exercice1.Util.getNossE
  * </p>
  */
 public class ExcellAnomalie {
+    static final int MAXROW = 65535; // dernier numéro de ligne sur une feuille (numérotées de 0 à 65535)
     /**
      * Expression régulière décrivant le format d'encodage des anomalies dans la gestion des lots DMFA/DMWA adopté dans le
      * cadre du refactoring Vauban de 2017..
@@ -49,16 +52,23 @@ public class ExcellAnomalie {
      * d'un séparateur ("##") et d'un message terminé par une des différentes formes possibles de retour à la ligne.
      */
     private static final String ANOMALIES_PATTERN = "(" + WARNING_PATTERN + ".+(\\r\\n|\\r|\\n))+";
-    static final int MAXROW = 65535; // dernier numéro de ligne sur une feuille (numérotées de 0 à 65535)
     private static final Logger LOGGER = LoggerFactory.getLogger(ExcellAnomalie.class);
     private static final String ERROR = "ERROR";
     private static final String WARNING = "WARNING";
     private static final String INFO = "INFO";
+
+    private final AnomalyRecordDao anomalyRecordDao;
     private String[] filenames;
+
+    public ExcellAnomalie(AnomalyRecordDao anomalyRecordDao) {
+        this.anomalyRecordDao = anomalyRecordDao;
+    }
 
     public static void main(String[] args) {
         try {
-            ExcellAnomalie excellAnomalie = new ExcellAnomalie();
+            ExcellAnomalie excellAnomalie = new ExcellAnomalie(
+                    new AnomalyRecordDao()
+            );
 
             // Les quelques lignes ci-dessous simulent la récupération des arguments du batch ainsi que
             // les propriétés venant du fichier forhrm.properties.
@@ -81,7 +91,7 @@ public class ExcellAnomalie {
      * Construction d'une liste de messages d'anomalies sur base du contenu du message contenu dans une ligne de la table
      * OnssAnomalie. Un message de la liste résultat tient en une seule ligne.
      *
-     * @param anomalie             contenu d'une cellule de la table OnssAnomalie
+     * @param anomalie contenu d'une cellule de la table OnssAnomalie
      * @return La liste des messages d'anomalie.
      */
     static List<String> splitAnomalyTextArea(String anomalie) {
@@ -402,7 +412,7 @@ public class ExcellAnomalie {
 
     private void buildExcel(String fullPathFileName, Trimestre trimestre, boolean isOriginal) {
 
-        List<AnomalyRecord> anomalyRecords = fetchAnomalyRecords(trimestre, isOriginal);
+        List<AnomalyRecord> anomalyRecords = anomalyRecordDao.fetchAnomalyRecords(trimestre, isOriginal);
 
         List<ReportLine> reportLines = buildReportLines(trimestre, anomalyRecords);
 
@@ -439,7 +449,7 @@ public class ExcellAnomalie {
     private List<ReportLine> buildReportLines(Trimestre trimestre, List<AnomalyRecord> anomalyRecords) {
         List<ReportLine> reportLines = new ArrayList<>();
 
-        for(AnomalyRecord anomalyRecord : anomalyRecords) {
+        for (AnomalyRecord anomalyRecord : anomalyRecords) {
             if (anomalyRecord.getAnomaly() == null || anomalyRecord.getAnomaly().length() == 0) {
                 continue;
             }
@@ -476,50 +486,6 @@ public class ExcellAnomalie {
 
         }
         return reportLines;
-    }
-
-    private List<AnomalyRecord> fetchAnomalyRecords(Trimestre trimestre, boolean isOriginal) {
-        Statement stmt = null;
-        ResultSet rs = null;
-
-        List<AnomalyRecord> anomalyRecords = new ArrayList<>();
-        try {
-
-            // Par souci didactique, seules la partie de la query relative aux employeurs a été conservée... :-)
-            String sql = buildQueryForAnomaliesInAQuarter(trimestre, isOriginal);
-
-            // (*) col1 où 1 fait référence à la colonne de la suite
-            // présentée dans l'analyse, tandis que 1 seul fait
-            // référence au numéro de colonne du SELECT sql
-
-            stmt = Connexion.getConnection().createStatement();
-
-            rs = stmt.executeQuery(sql);
-
-            while (rs.next()) {
-                anomalyRecords.add(new AnomalyRecord(rs));
-
-            }
-
-        } catch (SQLException | Exercice1Exception e) {
-            LOGGER.error(e.getMessage(), e);
-        } finally {
-            if (rs != null) {
-                try {
-                    rs.close();
-                } catch (SQLException s) {
-                    LOGGER.error(s.getMessage(), s);
-                }
-            }
-            if (stmt != null) {
-                try {
-                    stmt.close();
-                } catch (SQLException s) {
-                    LOGGER.error(s.getMessage(), s);
-                }
-            }
-        }
-        return anomalyRecords;
     }
 
     private void writeWorkbookToDisk(String fullPathFileName, List<String> vFilenames, int myWorkBookNum, HSSFWorkbook myWorkBook) {
@@ -867,67 +833,6 @@ public class ExcellAnomalie {
             }
         }
         return "";
-    }
-
-    private String buildQueryForAnomaliesInAQuarter(Trimestre trimestre, boolean isOriginal) {
-        return "select col2, col3, col4, col5, col6, col7, col8, col9a,  col9b,  col9c,  col9d,  col9e,  col9f, col10, col12, col14, col16, col18, col19, col25and26, col27  from ( "
-                +
-
-                /*
-                    Ajout des erreurs de niveau lot
-                 */
-                "select f_get_succuref_for_employer(sysdate, '1', olc.empcode) 																					as col2, "
-                + // 1
-                "f_getvaleur('SUCCU', 'NOMSUCCU',  f_get_succuid_for_employer(CURRENT_DATE, '1', olc.empcode), CURRENT_DATE, '')  								as col3, "
-                + // 2
-                "substr(f_getparametre('CONTACTCLI', 'ENTITEID', f_get_contactid_for_employer(CURRENT_DATE, '1', olc.empcode), CURRENT_DATE), "
-                + "instr(f_getparametre('CONTACTCLI', 'ENTITEID', f_get_contactid_for_employer(CURRENT_DATE, '1', olc.empcode), CURRENT_DATE), 'EQUIPE:') + 16,2) as col4, "
-                + // 3
-                "f_get_contactid_for_employer(CURRENT_DATE, '1', olc.empcode)                                                                                   as col5, "
-                + // 4
-                "f_get_contactlname_for_emp(CURRENT_DATE, '1', olc.empcode) || ' ' || f_get_contactfname_for_emp(CURRENT_DATE, '1', olc.empcode)                as col6, "
-                + // 5
-                "ol.lotno as col7, "
-                + // 6
-                "ol.lottype as col8, "
-                + // 7
-                "ol.statut as col9a, "
-                + // 8
-                "ol.statutactualisation as col9b, "
-                + // 9
-                "olc.statut as col9c, "
-                + // 10
-                "olc.statutactualisation as col9d, "
-                + // 11
-                "' ' as col9e, "
-                + // 12
-                "' ' as col9f, "
-                + // 13
-                "olc.empcode as col10, "
-                + // 14
-                "' ' as col12, "
-                + // 15
-                "' ' as col14, "
-                + // 16
-                "' ' as col16, "
-                + // 17
-                "-1 as col18, "
-                + // 18
-                "' ' as col19, "
-                + // 19
-                "a.anomalie as col25and26, "
-                + // 20
-                "ol.timestatut as col27 "
-                + // 21
-                "from onsslot ol, onsslotclient olc, onssanomalie a "
-                + "where ol.lottype "
-                + (isOriginal ? "not in" : "in")
-                + " ('R') and "
-                + "ol.travtrimestre = '"
-                + trimestre.asYYYYNN()
-                + "' and "
-                + "ol.lotno = olc.lotno and "
-                + "a.identifiant like to_char(ol.lotno) || '.' || olc.empcode || '.______' )";
     }
 
     private String[] initHeader() {
